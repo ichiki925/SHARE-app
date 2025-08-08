@@ -1,9 +1,5 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  
-  modules: [
-    '@nuxtjs/tailwindcss'
-  ],
 
   // Docker用の設定
   nitro: {
