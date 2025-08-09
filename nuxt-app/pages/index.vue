@@ -1,44 +1,62 @@
 <template>
     <div class="container">
-        <!-- ヘッダー -->
-        <div class="header">
-        <img src="/images/logo.png" alt="SHARE" class="logo" />
-        <div class="nav">
-            <NuxtLink to="/register" class="nav-link">新規登録</NuxtLink>
-            <NuxtLink to="/login" class="nav-link">ログイン</NuxtLink>
+        <!-- サイドバー -->
+        <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="/images/logo.png" alt="SHARE" class="logo" />
         </div>
-        </div>
-
-        <!-- ログインフォーム -->
-        <div class="form-container">
-        <h2 class="form-title">ログイン</h2>
         
-        <form @submit.prevent="handleLogin" class="form">
-            <!-- メールアドレス -->
-            <input
-            v-model="form.email"
-            type="email"
-            placeholder="メールアドレス"
-            class="input"
-            required
-            />
-
-            <!-- パスワード -->
-            <input
-            v-model="form.password"
-            type="password"
-            placeholder="パスワード"
-            class="input"
-            required
-            />
-
-            <!-- ログインボタン -->
-            <button type="submit" class="btn-primary">
-            ログイン
+        <nav class="nav">
+            <NuxtLink to="/home" class="nav-item active">
+                <img src="/images/home.png" alt="ホーム" class="nav-icon" />
+                ホーム
+            </NuxtLink>
+            <button class="nav-item logout-btn" @click="handleLogout">
+                <img src="/images/logout.png" alt="ログアウト" class="nav-icon" />
+                ログアウト
             </button>
-        </form>
-
+        </nav>
         
+        <div class="share-section">
+            <h3 class="share-title">シェア</h3>
+            <textarea 
+            v-model="newPost" 
+            class="share-textarea" 
+            placeholder="今何してる？"
+            maxlength="120"
+            ></textarea>
+            <button class="share-btn" @click="handleShare">シェアする</button>
+        </div>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div class="main">
+        <header class="main-header">
+            <h1>ホーム</h1>
+        </header>
+        
+        <div class="timeline">
+            <!-- 投稿例 -->
+            <div class="post">
+            <div class="post-header">
+                <span class="post-user">test</span>
+                <div class="post-actions">
+                    <span class="like-btn">
+                        <img src="/images/heart.png" alt="いいね" class="action-icon" /> 1
+                    </span>
+                    <span class="cross-btn">
+                        <img src="/images/cross.png" alt="閉じる" class="action-icon" />
+                    </span>
+                    <span class="detail-btn">
+                        <img src="/images/detail.png" alt="詳細" class="action-icon" />
+                    </span>
+                </div>
+            </div>
+            <p class="post-content">test message</p>
+            </div>
+
+            <!-- 他の投稿もここに追加 -->
+        </div>
         </div>
     </div>
 </template>
@@ -46,137 +64,260 @@
 <script setup>
 import { ref } from 'vue'
 
-// フォームデータ
-const form = ref({
-    email: '',
-    password: ''
-})
+// 新しい投稿内容
+const newPost = ref('')
 
-// ログイン処理
-const handleLogin = async () => {
-    try {
-        // バリデーション
-        if (!form.value.email || !form.value.password) {
-            alert('メールアドレスとパスワードを入力してください')
-            return
-        }
+// 投稿をシェアする処理
+const handleShare = async () => {
+  if (!newPost.value.trim()) {
+    alert('投稿内容を入力してください')
+    return
+  }
 
-        // TODO: Laravel APIにログインリクエストを送信
-        console.log('ログイン試行:', form.value)
-        
-        // 仮の処理（後でAPI連携に置き換え）
-        alert('ログイン機能は後で実装します')
-        
-    } catch (error) {
-        console.error('ログインエラー:', error)
-        alert('ログインに失敗しました')
-    }
+  try {
+    // TODO: Laravel APIに投稿を送信
+    console.log('新しい投稿:', newPost.value)
+    
+    // 投稿成功後、テキストエリアをクリア
+    newPost.value = ''
+    alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
+    
+  } catch (error) {
+    console.error('投稿エラー:', error)
+    alert('投稿に失敗しました')
+  }
+}
+
+// ログアウト処理
+const handleLogout = async () => {
+  try {
+    // TODO: Laravel APIにログアウトリクエスト
+    console.log('ログアウト')
+    
+    // ログイン画面にリダイレクト
+    await navigateTo('/')
+    
+  } catch (error) {
+    console.error('ログアウトエラー:', error)
+  }
 }
 
 // SEO設定
 useHead({
-    title: 'ログイン - SHARE',
-    meta: [
-        { name: 'description', content: 'SHAREにログインして投稿を共有しましょう' }
-    ]
+  title: 'ホーム - SHARE',
+  meta: [
+    { name: 'description', content: 'SHAREのタイムライン' }
+  ]
 })
 </script>
 
 <style scoped>
 .container {
-    min-height: 100vh;
-    background-color: #000000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
+  display: flex;
+  min-height: 100vh;
+  background-color: #000000;
+  color: white;
 }
 
-.header {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
+.sidebar {
+  width: 300px;
+  background-color: #000000;
+  padding: 1.5rem;
+}
+
+.sidebar-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
 }
 
 .logo {
-    height: 2.5rem;
-    width: auto;
+  height: 2rem;
+  width: auto;
 }
 
 .nav {
-    display: flex;
-    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
 }
 
-.nav-link {
-    color: white;
-    text-decoration: none;
-    transition: color 0.3s;
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: white;
+  transition: background-color 0.3s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  width: 100%;
+  text-align: left;
 }
 
-.nav-link:hover {
-    color: #d1d5db;
+.nav-item:hover {
+  background-color: #333333;
 }
 
-.form-container {
-    background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    padding: 1.5rem;
-    width: 100%;
-    max-width: 28rem;
+/* .nav-item.active {
+  background-color: #8b5cf6;
+} */
+
+.nav-icon {
+  font-size: 1.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
 }
 
-.form-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #1f2937;
-    text-align: center;
-    margin: 0 0 1.5rem 0;
-}
-
-.form {
+.share-section {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    align-items: flex-end;
+    border-top: none;
+    padding-top: 0;
 }
 
-.input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid #555;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.3s, box-shadow 0.3s;
-    box-sizing: border-box;
-}
-
-.input:focus {
-    border-color: #8b5cf6;
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-}
-
-.btn-primary {
-    width: 30%;
-    background-color: #6123f1;
+.share-title {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
     color: white;
-    padding: 8px;
-    border: 2px solid #1f2937;
-    border-radius: 25px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    margin: 0 auto;
+    align-self: flex-start;
 }
 
-.btn-primary:hover {
-    background-color: #7c3dea;
+.share-textarea {
+  width: 100%;
+  height: 150px;
+  padding: 0.75rem;
+  border: 1px solid #ffffff;
+  border-radius: 0.5rem;
+  background-color: #000000;
+  color: white;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+.share-textarea::placeholder {
+  color: #9ca3af;
+}
+
+
+.share-btn {
+  position: relative;
+  display: inline-inline;
+  padding: 8px 28px;
+  color: #fff;
+  background: #6d28d9;
+  border-radius: 9999px;
+}
+
+/* 左と上だけの細い線（影で描く） */
+.share-btn::before{
+  --outline: #d8d8d8;   /* ← 線の色（ここだけ変えればOK） */
+  --thick:   2px;       /* ← 線の太さ（1～3pxあたり） */
+  --spread:  0px;       /* ← 外側への張り出し。1px増やすと外に出る */
+
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  /* [x-offset y-offset blur spread color] を2本 */
+  box-shadow:
+    0 calc(-1*var(--thick)) 0 var(--spread) var(--outline),  /* 上の線 */
+    calc(-1*var(--thick)) 0 0 var(--spread) var(--outline);  /* 左の線 */
+}
+
+
+
+
+.share-btn:hover {
+  background-color: #7c3aed;
+}
+
+.main {
+  flex: 1;
+}
+
+.main-header {
+  padding: 1.5rem;
+  border-left: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+  background-color: #000000;
+}
+
+.main-header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.timeline {
+  padding: 1rem;
+  border-left: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+}
+
+.post {
+  background-color: transparent;
+  border-radius: 0;
+  padding: 1rem;
+  margin-bottom: 0;
+  border: none;
+}
+
+.post-header {
+  display: flex;
+  
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.post-user {
+  font-weight: 600;
+  color: #f3f4f6;
+  margin-right: 1rem;
+}
+
+.post-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.post-actions span {
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.3s;
+}
+
+.post-actions span:hover {
+  background-color: #333333;
+}
+
+.action-icon {
+    font-size: 1.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    object-fit: contain;
+}
+
+.post-content {
+  color: #e5e7eb;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* .logout-btn {
+  color: #ef4444 !important;
+} */
+
+.logout-btn:hover {
+  background-color: #7f1d1d !important;
 }
 </style>
