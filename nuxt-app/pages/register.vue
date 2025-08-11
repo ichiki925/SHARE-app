@@ -2,66 +2,89 @@
     <div class="container">
         <!-- ヘッダー -->
         <div class="header">
-        <img src="/images/logo.png" alt="SHARE" class="logo" />
-        <div class="nav">
-            <NuxtLink to="/register" class="nav-link">新規登録</NuxtLink>
-            <NuxtLink to="/login" class="nav-link">ログイン</NuxtLink>
-        </div>
+            <img src="/images/logo.png" alt="SHARE" class="logo" />
+            <div class="nav">
+                <NuxtLink to="/register" class="nav-link">新規登録</NuxtLink>
+                <NuxtLink to="/login" class="nav-link">ログイン</NuxtLink>
+            </div>
         </div>
 
         <!-- 新規登録フォーム -->
         <div class="form-container">
-        <h2 class="form-title">新規登録</h2>
+            <h2 class="form-title">新規登録</h2>
         
-        <form @submit.prevent="handleRegister" class="form">
-            <!-- ユーザーネーム -->
-            <input
-            v-model="form.username"
-            type="text"
-            placeholder="ユーザーネーム"
-            class="input"
-            maxlength="20"
-            required
-            />
+            <form @submit.prevent="handleRegister" class="form">
+                <!-- ユーザーネーム -->
+                <input
+                    v-model="form.username"
+                    type="text"
+                    placeholder="ユーザーネーム"
+                    class="input"
+                    maxlength="20"
+                    required
+                />
 
-            <!-- メールアドレス -->
-            <input
-            v-model="form.email"
-            type="email"
-            placeholder="メールアドレス"
-            class="input"
-            required
-            />
+                <!-- メールアドレス -->
+                <input
+                    v-model="form.email"
+                    type="email"
+                    placeholder="メールアドレス"
+                    class="input"
+                    required
+                />
 
-            <!-- パスワード -->
-            <input
-            v-model="form.password"
-            type="password"
-            placeholder="パスワード"
-            class="input"
-            minlength="6"
-            required
-            />
+                <!-- パスワード -->
+                <input
+                    v-model="form.password"
+                    type="password"
+                    placeholder="パスワード"
+                    class="input"
+                    minlength="6"
+                    required
+                />
 
-            <!-- 新規登録ボタン -->
-            <button type="submit" class="btn-primary">
-            新規登録
-            </button>
-        </form>
+                <!-- 新規登録ボタン -->
+                <button type="submit" class="btn-primary" :disabled="isLoading">
+                    {{ isLoading ? '登録中...' : '新規登録' }}
+                </button>
+            </form>
 
-        
+            <!-- デバッグ用：テスト用新規登録ボタン -->
+            <div class="debug-section" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                <p style="font-size: 14px; color: #666;">開発用テスト新規登録:</p>
+                <button 
+                    @click="handleTestRegister" 
+                    class="btn-secondary" 
+                    style="background: #ff9800; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;"
+                >
+                    テストユーザーで新規登録
+                </button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+const { login, checkAuthStatus, isLoggedIn } = useAuth()
 
 // フォームデータ
 const form = ref({
     username: '',
     email: '',
     password: ''
+})
+
+const isLoading = ref(false)
+
+// 既にログイン済みの場合はホームにリダイレクト
+onMounted(() => {
+    checkAuthStatus()
+    if (isLoggedIn.value) {
+        navigateTo('/')
+    }
 })
 
 // 新規登録処理
@@ -83,15 +106,59 @@ const handleRegister = async () => {
             return
         }
 
+        isLoading.value = true
+
+
         // TODO: Laravel APIに新規登録リクエストを送信
         console.log('新規登録試行:', form.value)
-        
+
         // 仮の処理（後でAPI連携に置き換え）
-        alert('新規登録機能は後で実装します')
-        
+        // 簡単な新規登録成功シミュレーション
+        if (form.value.email === 'newuser@example.com') {
+            // 新規登録成功の処理
+            const userData = {
+                id: 2,
+                name: form.value.username,
+                email: form.value.email
+            }
+
+            login(userData, 'dummy_token_67890')
+
+            alert('新規登録とログインが完了しました！')
+
+            // ホーム画面にリダイレクト
+            await navigateTo('/')
+
+        } else {
+            alert('新規登録機能は後で実装します\n（テスト用: newuser@example.com で登録可能）')
+        }
+
     } catch (error) {
         console.error('新規登録エラー:', error)
         alert('新規登録に失敗しました')
+    } finally {
+        isLoading.value = false
+    }
+
+}
+
+// テスト用新規登録（開発中のみ）
+const handleTestRegister = async () => {
+    try {
+        const userData = {
+            id: 2,
+            name: 'New Test User',
+            email: 'newuser@example.com'
+        }
+
+        login(userData, 'dummy_token_67890')
+
+        alert('テスト新規登録とログインが完了しました！')
+        await navigateTo('/')
+
+    } catch (error) {
+        console.error('テスト新規登録エラー:', error)
+        alert('テスト新規登録に失敗しました')
     }
 }
 

@@ -1,105 +1,157 @@
 <template>
-    <div class="container">
-        <!-- サイドバー -->
-        <div class="sidebar">
-        <div class="sidebar-header">
-            <img src="/images/logo.png" alt="SHARE" class="logo" />
-        </div>
-        
-        <nav class="nav">
-            <NuxtLink to="/home" class="nav-item active">
-                <img src="/images/home.png" alt="ホーム" class="nav-icon" />
-                ホーム
-            </NuxtLink>
-            <button class="nav-item logout-btn" @click="handleLogout">
-                <img src="/images/logout.png" alt="ログアウト" class="nav-icon" />
-                ログアウト
-            </button>
-        </nav>
-        
-        <div class="share-section">
-            <h3 class="share-title">シェア</h3>
-            <textarea 
-            v-model="newPost" 
-            class="share-textarea" 
-            placeholder="今何してる？"
-            maxlength="120"
-            ></textarea>
-            <button class="share-btn" @click="handleShare">シェアする</button>
-        </div>
-        </div>
+  <div class="container">
+    <!-- サイドバー -->
+    <div class="sidebar">
 
-        <!-- メインコンテンツ -->
-        <div class="main">
-        <header class="main-header">
-            <h1>ホーム</h1>
-        </header>
+      <div class="sidebar-header">
+        <img src="/images/logo.png" alt="SHARE" class="logo" />
+      </div>
         
-        <div class="timeline">
-            <!-- 投稿例 -->
-            <div class="post">
-            <div class="post-header">
-                <span class="post-user">test</span>
-                <div class="post-actions">
-                    <span class="like-btn">
-                        <img src="/images/heart.png" alt="いいね" class="action-icon" /> 1
-                    </span>
-                    <span class="cross-btn">
-                        <img src="/images/cross.png" alt="閉じる" class="action-icon" />
-                    </span>
-                    <span class="detail-btn">
-                        <img src="/images/detail.png" alt="詳細" class="action-icon" />
-                    </span>
-                </div>
-            </div>
-            <p class="post-content">test message</p>
-            </div>
-
-            <!-- 他の投稿もここに追加 -->
-        </div>
-        </div>
+      <nav class="nav">
+        <NuxtLink to="/home" class="nav-item active" @click="handleNavClick">
+          <img src="/images/home.png" alt="ホーム" class="nav-icon" />
+          ホーム
+        </NuxtLink>
+        <button class="nav-item logout-btn" @click="handleLogout">
+          <img src="/images/logout.png" alt="ログアウト" class="nav-icon" />
+          ログアウト
+        </button>
+      </nav>
+        
+      <div class="share-section">
+        <h3 class="share-title">シェア</h3>
+        <textarea 
+          v-model="newPost" 
+          class="share-textarea" 
+          placeholder="今何してる？"
+          maxlength="120"
+          @click="handleTextareaClick"
+        ></textarea>
+        <button class="share-btn" @click="handleShare">シェアする</button>
+      </div>
     </div>
+
+    <!-- メインコンテンツ -->
+    <div class="main">
+      <header class="main-header">
+        <h1>ホーム</h1>
+      </header>
+        
+      <div class="timeline">
+        <!-- 投稿例 -->
+        <div class="post">
+          <div class="post-header">
+            <span class="post-user">test</span>
+            <div class="post-actions">
+              <span class="like-btn" @click="handleLikeClick">
+                <img src="/images/heart.png" alt="いいね" class="action-icon" /> 1
+              </span>
+              <span class="cross-btn" @click="handleCrossClick">
+                <img src="/images/cross.png" alt="閉じる" class="action-icon" />
+              </span>
+              <span class="detail-btn" @click="handleDetailClick">
+                <img src="/images/detail.png" alt="詳細" class="action-icon" />
+              </span>
+            </div>
+          </div>
+          <p class="post-content">test message</p>
+        </div>
+
+        <!-- 他の投稿もここに追加 -->
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+const { isLoggedIn, checkAuthStatus, logout, requireAuth } = useAuth()
+
 
 // 新しい投稿内容
 const newPost = ref('')
 
+onMounted(() => {
+  checkAuthStatus()
+})
+
+const handleNavClick = (event) => {
+  if (!isLoggedIn.value) {
+    event.preventDefault()
+    navigateTo('/login')
+  }
+}
+
+const handleTextareaClick = () => {
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+  }
+}
+
+
 // 投稿をシェアする処理
 const handleShare = async () => {
-  if (!newPost.value.trim()) {
-    alert('投稿内容を入力してください')
-    return
-  }
+  requireAuth(async () => {
+    if (!newPost.value.trim()) {
+      alert('投稿内容を入力してください')
+      return
+    }
 
-  try {
-    // TODO: Laravel APIに投稿を送信
-    console.log('新しい投稿:', newPost.value)
-    
-    // 投稿成功後、テキストエリアをクリア
-    newPost.value = ''
-    alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
-    
-  } catch (error) {
-    console.error('投稿エラー:', error)
-    alert('投稿に失敗しました')
-  }
+    try {
+      // TODO: Laravel APIに投稿を送信
+      console.log('新しい投稿:', newPost.value)
+
+      // 投稿成功後、テキストエリアをクリア
+      newPost.value = ''
+      alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
+
+    } catch (error) {
+      console.error('投稿エラー:', error)
+      alert('投稿に失敗しました')
+    }
+  })
 }
 
 // ログアウト処理
 const handleLogout = async () => {
-  try {
-    // TODO: Laravel APIにログアウトリクエスト
-    console.log('ログアウト')
-    
-    // ログイン画面にリダイレクト
-    await navigateTo('/')
-    
-  } catch (error) {
-    console.error('ログアウトエラー:', error)
-  }
+  requireAuth(async () => {
+    try {
+      // TODO: Laravel APIにログアウトリクエスト
+      console.log('ログアウト')
+
+      logout()
+
+      // ログイン画面にリダイレクト
+      await navigateTo('/login')
+
+    } catch (error) {
+      console.error('ログアウトエラー:', error)
+    }
+  })
+}
+
+const handleLikeClick = () => {
+  requireAuth(() => {
+    console.log('いいね機能（後で実装）')
+    alert('いいね機能は後で実装します')
+  })
+}
+
+const handleCrossClick = () => {
+  requireAuth(() => {
+    console.log('投稿を非表示（後で実装）')
+    alert('投稿非表示機能は後で実装します')
+  })
+}
+
+const handleDetailClick = () => {
+  requireAuth(() => {
+    // 投稿詳細画面に遷移
+    console.log('投稿詳細画面に遷移')
+    navigateTo('/post/1') // 仮のID、後で動的に変更
+  })
 }
 
 // SEO設定

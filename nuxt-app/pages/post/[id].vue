@@ -1,105 +1,107 @@
 <template>
-    <div class="container">
-        <!-- サイドバー -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <img src="/images/logo.png" alt="SHARE" class="logo" />
-            </div>
+  <div class="container">
+    <!-- サイドバー -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <img src="/images/logo.png" alt="SHARE" class="logo" />
+      </div>
 
-            <nav class="nav">
-                <NuxtLink to="/home" class="nav-item">
-                    <img src="/images/home.png" alt="ホーム" class="nav-icon" />
-                    ホーム
-                </NuxtLink>
-                <button class="nav-item logout-btn" @click="handleLogout">
-                    <img src="/images/logout.png" alt="ログアウト" class="nav-icon" />
-                    ログアウト
-                </button>
-            </nav>
+      <nav class="nav">
+        <NuxtLink to="/" class="nav-item">
+          <img src="/images/home.png" alt="ホーム" class="nav-icon" />
+          ホーム
+        </NuxtLink>
+        <button class="nav-item logout-btn" @click="handleLogout">
+          <img src="/images/logout.png" alt="ログアウト" class="nav-icon" />
+          ログアウト
+        </button>
+      </nav>
 
-            <div class="share-section">
-                <h3 class="share-title">シェア</h3>
-                <textarea
-                    v-model="newPost"
-                    class="share-textarea"
-                    placeholder="今何してる？"
-                    maxlength="120"
-                ></textarea>
-                <button class="share-btn" @click="handleShare">シェアする</button>
-            </div>
-        </div>
-
-        <!-- メインコンテンツ -->
-        <div class="main">
-            <header class="main-header">
-                <h1>コメント</h1>
-            </header>
-
-        <div class="detail-content">
-            <!-- 元の投稿 -->
-            <div class="original-post">
-                <div class="post-header">
-                    <span class="post-user">{{ post.username }}</span>
-                    <div class="post-actions">
-                        <span class="like-btn" @click="handleLike">
-                            <img src="/images/heart.png" alt="いいね" class="action-icon" /> 
-                            {{ post.likes_count }}
-                        </span>
-                        <span class="cross-btn" @click="handleClose">
-                            <img src="/images/cross.png" alt="閉じる" class="action-icon" />
-                        </span>
-                    </div>
-                </div>
-                <p class="post-content">{{ post.content }}</p>
-            </div>
-
-            <!-- コメント一覧 -->
-            <div class="comments-section">
-            <h3 class="comments-title">コメント</h3>
-
-            <div class="comments-list">
-                <div v-for="comment in comments" :key="comment.id" class="comment-item">
-                <div class="comment-header">
-                    <span class="comment-user">{{ comment.username }}</span>
-                    <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
-                </div>
-                <p class="comment-content">{{ comment.content }}</p>
-                </div>
-
-                <!-- コメントがない場合 -->
-                <div v-if="comments.length === 0" class="no-comments">
-                まだコメントがありません
-                </div>
-            </div>
-            </div>
-
-            <!-- コメント投稿フォーム -->
-            <div class="comment-form">
-            <div class="comment-input-container">
-                <input 
-                v-model="newComment" 
-                type="text" 
-                class="comment-input" 
-                placeholder="コメントを入力..."
-                maxlength="200"
-                @keyup.enter="handleComment"
-                />
-            </div>
-            <div class="comment-btn-container">
-                <button class="comment-btn" @click="handleComment">コメント</button>
-            </div>
-            </div>
-        </div>
-        </div>
+      <div class="share-section">
+        <h3 class="share-title">シェア</h3>
+        <textarea
+          v-model="newPost"
+          class="share-textarea"
+          placeholder="今何してる？"
+          maxlength="120"
+        ></textarea>
+        <button class="share-btn" @click="handleShare">シェアする</button>
+      </div>
     </div>
+
+    <!-- メインコンテンツ -->
+    <div class="main">
+      <header class="main-header">
+        <h1>コメント</h1>
+      </header>
+
+      <div class="detail-content">
+        <!-- 元の投稿 -->
+        <div class="original-post">
+          <div class="post-header">
+            <span class="post-user">{{ post.username }}</span>
+            <div class="post-actions">
+              <span class="like-btn" @click="handleLike">
+                <img src="/images/heart.png" alt="いいね" class="action-icon" /> 
+                {{ post.likes_count }}
+              </span>
+              <span class="cross-btn" @click="handleClose">
+                <img src="/images/cross.png" alt="削除" class="action-icon" />
+              </span>
+            </div>
+          </div>
+          <p class="post-content">{{ post.content }}</p>
+        </div>
+
+        <!-- コメント一覧 -->
+        <div class="comments-section">
+          <h3 class="comments-title">コメント</h3>
+
+          <div class="comments-list">
+            <div v-for="comment in comments" :key="comment.id" class="comment-item">
+              <div class="comment-header">
+                <span class="comment-user">{{ comment.username }}</span>
+                <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
+              </div>
+              <p class="comment-content">{{ comment.content }}</p>
+            </div>
+
+            <!-- コメントがない場合 -->
+            <div v-if="comments.length === 0" class="no-comments">
+              まだコメントがありません
+            </div>
+          </div>
+        </div>
+
+        <!-- コメント投稿フォーム -->
+        <div class="comment-form">
+          <div class="comment-input-container">
+            <input
+              v-model="newComment"
+              type="text"
+              class="comment-input"
+              placeholder="コメントを入力..."
+              maxlength="120"
+              @keyup.enter="handleComment"
+            />
+          </div>
+          <div class="comment-btn-container">
+            <button class="comment-btn" @click="handleComment">コメント</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from '#app'
+import { useAuth } from '~/composables/useAuth'
 
+const { isLoggedIn, checkAuthStatus, logout, requireAuth } = useAuth()
 const route = useRoute()
-const router = useRouter()
+
 
 // リアクティブデータ
 const newPost = ref('')
@@ -121,18 +123,27 @@ const comments = ref([
   }
 ])
 
+onMounted(() => {
+  checkAuthStatus()
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+  fetchPostDetail()
+})
+
 // 投稿詳細を取得
 const fetchPostDetail = async () => {
   try {
     const postId = route.params.id
     // TODO: Laravel APIから投稿詳細とコメントを取得
     console.log('投稿詳細取得:', postId)
-    
+
     // 実際のAPI実装時はここでデータを取得
     // const response = await $fetch(`/api/posts/${postId}`)
     // post.value = response.post
     // comments.value = response.comments
-    
+
   } catch (error) {
     console.error('投稿詳細取得エラー:', error)
   }
@@ -140,109 +151,132 @@ const fetchPostDetail = async () => {
 
 // いいね処理
 const handleLike = async () => {
-  try {
-    // TODO: Laravel APIにいいねリクエスト
-    console.log('いいね:', post.value.id)
-    
-    // 楽観的更新
-    post.value.likes_count += 1
-    
-  } catch (error) {
-    console.error('いいねエラー:', error)
-    // エラー時は元に戻す
-    post.value.likes_count -= 1
-  }
+  requireAuth(async () => {
+    try {
+      // TODO: Laravel APIにいいねリクエスト
+      console.log('いいね:', post.value.id)
+
+      // 楽観的更新
+      post.value.likes_count += 1
+
+    } catch (error) {
+      console.error('いいねエラー:', error)
+      // エラー時は元に戻す
+      post.value.likes_count -= 1
+    }
+  })
 }
 
-// 閉じる処理
 const handleClose = () => {
-  router.push('/home')
+  requireAuth(async () => {
+    if (confirm('この投稿を削除しますか？')) {
+      try {
+        // TODO: Laravel APIに投稿削除リクエスト
+        console.log('投稿削除:', post.value.id)
+
+        alert('投稿を削除しました！（API実装後に実際の削除機能が動作します）')
+
+        // 削除後はホーム画面に戻る
+        navigateTo('/')
+
+      } catch (error) {
+        console.error('投稿削除エラー:', error)
+        alert('投稿の削除に失敗しました')
+      }
+    }
+  })
 }
+
+
 
 // コメント投稿処理
 const handleComment = async () => {
-  if (!newComment.value.trim()) {
-    alert('コメントを入力してください')
-    return
-  }
-
-  try {
-    // TODO: Laravel APIにコメント投稿
-    console.log('新しいコメント:', newComment.value)
-    
-    // 楽観的更新
-    const comment = {
-      id: Date.now(),
-      username: 'current_user', // 実際はログインユーザー名
-      content: newComment.value,
-      created_at: new Date()
+  requireAuth(async () => {
+    if (!newComment.value.trim()) {
+      alert('コメントを入力してください')
+      return
     }
-    
-    comments.value.unshift(comment)
-    newComment.value = ''
-    
-    alert('コメントしました！（API実装後に実際のコメント機能が動作します）')
-    
-  } catch (error) {
-    console.error('コメントエラー:', error)
-    alert('コメント投稿に失敗しました')
-  }
+
+    try {
+      // TODO: Laravel APIにコメント投稿
+      console.log('新しいコメント:', newComment.value)
+
+      // 楽観的更新
+      const comment = {
+        id: Date.now(),
+        username: 'current_user', // 実際はログインユーザー名
+        content: newComment.value,
+        created_at: new Date()
+      }
+
+      comments.value.unshift(comment)
+      newComment.value = ''
+
+      alert('コメントしました！（API実装後に実際のコメント機能が動作します）')
+
+    } catch (error) {
+      console.error('コメントエラー:', error)
+      alert('コメント投稿に失敗しました')
+    }
+  })
 }
 
 // 投稿をシェアする処理
 const handleShare = async () => {
-  if (!newPost.value.trim()) {
-    alert('投稿内容を入力してください')
-    return
-  }
+  requireAuth(async () => {
+    if (!newPost.value.trim()) {
+      alert('投稿内容を入力してください')
+      return
+    }
 
-  try {
-    // TODO: Laravel APIに投稿を送信
-    console.log('新しい投稿:', newPost.value)
-    
-    // 投稿成功後、テキストエリアをクリア
-    newPost.value = ''
-    alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
-    
-  } catch (error) {
-    console.error('投稿エラー:', error)
-    alert('投稿に失敗しました')
-  }
+    try {
+      // TODO: Laravel APIに投稿を送信
+      console.log('新しい投稿:', newPost.value)
+
+      // 投稿成功後、テキストエリアをクリア
+      newPost.value = ''
+      alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
+
+    } catch (error) {
+      console.error('投稿エラー:', error)
+      alert('投稿に失敗しました')
+    }
+  })
 }
 
 // ログアウト処理
 const handleLogout = async () => {
-  try {
-    // TODO: Laravel APIにログアウトリクエスト
-    console.log('ログアウト')
-    
-    // ログイン画面にリダイレクト
-    await navigateTo('/')
-    
-  } catch (error) {
-    console.error('ログアウトエラー:', error)
-  }
+  requireAuth(async () => {
+    try {
+      // TODO: Laravel APIにログアウトリクエスト
+      console.log('ログアウト')
+      logout()
+
+      // ログイン画面にリダイレクト
+      await navigateTo('/login')
+
+    } catch (error) {
+      console.error('ログアウトエラー:', error)
+    }
+  })
 }
 
 // 時間フォーマット
 const formatTime = (date) => {
   const now = new Date()
   const diffInMinutes = Math.floor((now - new Date(date)) / (1000 * 60))
-  
+
   if (diffInMinutes < 1) return 'たった今'
   if (diffInMinutes < 60) return `${diffInMinutes}分前`
-  
+
   const diffInHours = Math.floor(diffInMinutes / 60)
   if (diffInHours < 24) return `${diffInHours}時間前`
-  
+
   const diffInDays = Math.floor(diffInHours / 24)
   return `${diffInDays}日前`
 }
 
-// コンポーネントマウント時
-onMounted(() => {
-  fetchPostDetail()
-})
+
 
 // SEO設定
 useHead({

@@ -2,55 +2,78 @@
     <div class="container">
         <!-- ヘッダー -->
         <div class="header">
-        <img src="/images/logo.png" alt="SHARE" class="logo" />
-        <div class="nav">
-            <NuxtLink to="/register" class="nav-link">新規登録</NuxtLink>
-            <NuxtLink to="/login" class="nav-link">ログイン</NuxtLink>
-        </div>
+            <img src="/images/logo.png" alt="SHARE" class="logo" />
+            <div class="nav">
+                <NuxtLink to="/register" class="nav-link">新規登録</NuxtLink>
+                <NuxtLink to="/login" class="nav-link">ログイン</NuxtLink>
+            </div>
         </div>
 
         <!-- ログインフォーム -->
         <div class="form-container">
-        <h2 class="form-title">ログイン</h2>
+            <h2 class="form-title">ログイン</h2>
         
-        <form @submit.prevent="handleLogin" class="form">
-            <!-- メールアドレス -->
-            <input
-            v-model="form.email"
-            type="email"
-            placeholder="メールアドレス"
-            class="input"
-            required
-            />
+            <form @submit.prevent="handleLogin" class="form">
+                <!-- メールアドレス -->
+                <input
+                    v-model="form.email"
+                    type="email"
+                    placeholder="メールアドレス"
+                    class="input"
+                    required
+                />
 
-            <!-- パスワード -->
-            <input
-            v-model="form.password"
-            type="password"
-            placeholder="パスワード"
-            class="input"
-            required
-            />
+                <!-- パスワード -->
+                <input
+                    v-model="form.password"
+                    type="password"
+                    placeholder="パスワード"
+                    class="input"
+                    required
+                />
 
-            <!-- ログインボタン -->
-            <button type="submit" class="btn-primary">
-            ログイン
-            </button>
-        </form>
+                <!-- ログインボタン -->
+                <button type="submit" class="btn-primary" :disabled="isLoading">
+                    {{ isLoading ? 'ログイン中...' : 'ログイン' }}
+                </button>
+            </form>
 
-        
+            <div class="debug-section" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                <p style="font-size: 14px; color: #666;">開発用テストログイン:</p>
+                <button 
+                    @click="handleTestLogin" 
+                    class="btn-secondary" 
+                    style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;"
+                >
+                    テストユーザーでログイン
+                </button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+const { login, checkAuthStatus, isLoggedIn } = useAuth()
+
 
 // フォームデータ
 const form = ref({
     email: '',
     password: ''
 })
+
+const isLoading = ref(false)
+
+onMounted(() => {
+    checkAuthStatus()
+    if (isLoggedIn.value) {
+        navigateTo('/')
+    }
+})
+
 
 // ログイン処理
 const handleLogin = async () => {
@@ -61,15 +84,58 @@ const handleLogin = async () => {
             return
         }
 
+        isLoading.value = true
+
+
         // TODO: Laravel APIにログインリクエストを送信
         console.log('ログイン試行:', form.value)
-        
+
         // 仮の処理（後でAPI連携に置き換え）
-        alert('ログイン機能は後で実装します')
-        
+        // 簡単なバリデーション（デモ用）
+        if (form.value.email === 'test@example.com' && form.value.password === 'password') {
+            // ログイン成功の処理
+            const userData = {
+                id: 1,
+                name: 'Test User',
+                email: form.value.email
+            }
+
+            login(userData, 'dummy_token_12345')
+
+            alert('ログインしました！')
+
+            // ホーム画面にリダイレクト
+            await navigateTo('/')
+
+        } else {
+            alert('メールアドレスまたはパスワードが間違っています\n（テスト用: test@example.com / password）')
+        }
+
     } catch (error) {
         console.error('ログインエラー:', error)
         alert('ログインに失敗しました')
+    } finally {
+        isLoading.value = false
+    }
+}
+
+// テスト用ログイン（開発中のみ）
+const handleTestLogin = async () => {
+    try {
+        const userData = {
+            id: 1,
+            name: 'Test User',
+            email: 'test@example.com'
+        }
+
+        login(userData, 'dummy_token_12345')
+
+        alert('テストログインしました！')
+        await navigateTo('/')
+
+    } catch (error) {
+        console.error('テストログインエラー:', error)
+        alert('テストログインに失敗しました')
     }
 }
 
