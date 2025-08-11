@@ -6,9 +6,9 @@
       <div class="sidebar-header">
         <img src="/images/logo.png" alt="SHARE" class="logo" />
       </div>
-        
+
       <nav class="nav">
-        <NuxtLink to="/home" class="nav-item active" @click="handleNavClick">
+        <NuxtLink to="/" class="nav-item active" @click="handleNavClick">
           <img src="/images/home.png" alt="ホーム" class="nav-icon" />
           ホーム
         </NuxtLink>
@@ -17,12 +17,12 @@
           ログアウト
         </button>
       </nav>
-        
+
       <div class="share-section">
         <h3 class="share-title">シェア</h3>
-        <textarea 
-          v-model="newPost" 
-          class="share-textarea" 
+        <textarea
+          v-model="newPost"
+          class="share-textarea"
           placeholder="今何してる？"
           maxlength="120"
           @click="handleTextareaClick"
@@ -36,7 +36,7 @@
       <header class="main-header">
         <h1>ホーム</h1>
       </header>
-        
+
       <div class="timeline">
         <!-- 投稿例 -->
         <div class="post">
@@ -65,16 +65,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
+import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { isLoggedIn, checkAuthStatus, logout, requireAuth } = useAuth()
+const { user, isLoggedIn, logout } = useFirebaseAuth()
 
 
 // 新しい投稿内容
 const newPost = ref('')
 
 onMounted(() => {
-  checkAuthStatus()
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+  }
 })
 
 const handleNavClick = (event) => {
@@ -93,65 +95,75 @@ const handleTextareaClick = () => {
 
 // 投稿をシェアする処理
 const handleShare = async () => {
-  requireAuth(async () => {
-    if (!newPost.value.trim()) {
-      alert('投稿内容を入力してください')
-      return
-    }
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
 
-    try {
-      // TODO: Laravel APIに投稿を送信
-      console.log('新しい投稿:', newPost.value)
+  if (!newPost.value.trim()) {
+    alert('投稿内容を入力してください')
+    return
+  }
 
-      // 投稿成功後、テキストエリアをクリア
-      newPost.value = ''
-      alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
+  try {
+    // TODO: Laravel APIに投稿を送信
+    console.log('新しい投稿:', newPost.value)
 
-    } catch (error) {
-      console.error('投稿エラー:', error)
-      alert('投稿に失敗しました')
-    }
-  })
+    // 投稿成功後、テキストエリアをクリア
+    newPost.value = ''
+    alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
+
+  } catch (error) {
+    console.error('投稿エラー:', error)
+    alert('投稿に失敗しました')
+  }
 }
 
 // ログアウト処理
 const handleLogout = async () => {
-  requireAuth(async () => {
-    try {
-      // TODO: Laravel APIにログアウトリクエスト
-      console.log('ログアウト')
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
 
-      logout()
+  try {
+    console.log('ログアウト')
+    await logout()
 
-      // ログイン画面にリダイレクト
-      await navigateTo('/login')
+    // ログイン画面にリダイレクト
+    await navigateTo('/login')
 
-    } catch (error) {
-      console.error('ログアウトエラー:', error)
-    }
-  })
+  } catch (error) {
+    console.error('ログアウトエラー:', error)
+  }
 }
 
 const handleLikeClick = () => {
-  requireAuth(() => {
-    console.log('いいね機能（後で実装）')
-    alert('いいね機能は後で実装します')
-  })
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+  console.log('いいね機能（後で実装）')
+  alert('いいね機能は後で実装します')
 }
 
 const handleCrossClick = () => {
-  requireAuth(() => {
-    console.log('投稿を非表示（後で実装）')
-    alert('投稿非表示機能は後で実装します')
-  })
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+  console.log('投稿を非表示（後で実装）')
+  alert('投稿非表示機能は後で実装します')
 }
 
 const handleDetailClick = () => {
-  requireAuth(() => {
-    // 投稿詳細画面に遷移
-    console.log('投稿詳細画面に遷移')
-    navigateTo('/post/1') // 仮のID、後で動的に変更
-  })
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+  // 投稿詳細画面に遷移
+  console.log('投稿詳細画面に遷移')
+  navigateTo('/post/1') // 仮のID、後で動的に変更
 }
 
 // SEO設定
@@ -325,7 +337,6 @@ useHead({
 
 .post-header {
   display: flex;
-  
   align-items: center;
   margin-bottom: 0.5rem;
 }
@@ -364,10 +375,6 @@ useHead({
   line-height: 1.5;
   margin: 0;
 }
-
-/* .logout-btn {
-  color: #ef4444 !important;
-} */
 
 .logout-btn:hover {
   background-color: #7f1d1d !important;

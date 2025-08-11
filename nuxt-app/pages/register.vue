@@ -37,7 +37,7 @@
                 <input
                     v-model="form.password"
                     type="password"
-                    placeholder="パスワード"
+                    placeholder="パスワード (6文字以上)"
                     class="input"
                     minlength="6"
                     required
@@ -49,16 +49,14 @@
                 </button>
             </form>
 
-            <!-- デバッグ用：テスト用新規登録ボタン -->
-            <div class="debug-section" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                <p style="font-size: 14px; color: #666;">開発用テスト新規登録:</p>
-                <button 
-                    @click="handleTestRegister" 
-                    class="btn-secondary" 
-                    style="background: #ff9800; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;"
-                >
-                    テストユーザーで新規登録
-                </button>
+            <!-- エラーメッセージ -->
+            <div v-if="errorMessage" class="error-message">
+                {{ errorMessage }}
+            </div>
+
+            <!-- 成功メッセージ -->
+            <div v-if="successMessage" class="success-message">
+                {{ successMessage }}
             </div>
         </div>
     </div>
@@ -66,9 +64,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
+import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { login, checkAuthStatus, isLoggedIn } = useAuth()
+const { 
+    register, 
+    isLoggedIn, 
+    isLoading, 
+    getErrorMessage 
+} = useFirebaseAuth()
 
 // フォームデータ
 const form = ref({
@@ -77,11 +80,11 @@ const form = ref({
     password: ''
 })
 
-const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
 // 既にログイン済みの場合はホームにリダイレクト
 onMounted(() => {
-    checkAuthStatus()
     if (isLoggedIn.value) {
         navigateTo('/')
     }
@@ -92,73 +95,41 @@ const handleRegister = async () => {
     try {
         // バリデーション
         if (!form.value.username || !form.value.email || !form.value.password) {
-            alert('すべての項目を入力してください')
+            errorMessage.value = 'すべての項目を入力してください'
             return
         }
 
         if (form.value.username.length > 20) {
-            alert('ユーザーネームは20文字以内で入力してください')
+            errorMessage.value = 'ユーザーネームは20文字以内で入力してください'
             return
         }
 
         if (form.value.password.length < 6) {
-            alert('パスワードは6文字以上で入力してください')
+            errorMessage.value = 'パスワードは6文字以上で入力してください'
             return
         }
 
-        isLoading.value = true
+        errorMessage.value = ''
+        successMessage.value = ''
 
+        // Firebase認証で新規登録
+        await register(
+            form.value.email,
+            form.value.password,
+            form.value.username
+        )
 
-        // TODO: Laravel APIに新規登録リクエストを送信
-        console.log('新規登録試行:', form.value)
+        console.log('Firebase 新規登録成功')
+        successMessage.value = '新規登録が完了しました！ホーム画面に移動します...'
 
-        // 仮の処理（後でAPI連携に置き換え）
-        // 簡単な新規登録成功シミュレーション
-        if (form.value.email === 'newuser@example.com') {
-            // 新規登録成功の処理
-            const userData = {
-                id: 2,
-                name: form.value.username,
-                email: form.value.email
-            }
-
-            login(userData, 'dummy_token_67890')
-
-            alert('新規登録とログインが完了しました！')
-
-            // ホーム画面にリダイレクト
-            await navigateTo('/')
-
-        } else {
-            alert('新規登録機能は後で実装します\n（テスト用: newuser@example.com で登録可能）')
-        }
+        setTimeout(() => {
+            navigateTo('/')
+        }, 2000)
 
     } catch (error) {
         console.error('新規登録エラー:', error)
-        alert('新規登録に失敗しました')
-    } finally {
-        isLoading.value = false
-    }
-
-}
-
-// テスト用新規登録（開発中のみ）
-const handleTestRegister = async () => {
-    try {
-        const userData = {
-            id: 2,
-            name: 'New Test User',
-            email: 'newuser@example.com'
-        }
-
-        login(userData, 'dummy_token_67890')
-
-        alert('テスト新規登録とログインが完了しました！')
-        await navigateTo('/')
-
-    } catch (error) {
-        console.error('テスト新規登録エラー:', error)
-        alert('テスト新規登録に失敗しました')
+        errorMessage.value = getErrorMessage(error)
+        successMessage.value = ''
     }
 }
 
@@ -269,5 +240,26 @@ useHead({
     background-color: #7c3aed;
 }
 
+.error-message {
+    background-color: #fee2e2;
+    color: #dc2626;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #fecaca;
+}
+
+.success-message {
+    background-color: #d1fae5;
+    color: #059669;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #a7f3d0;
+}
 
 </style>

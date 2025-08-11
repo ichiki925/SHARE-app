@@ -1,40 +1,57 @@
 <template>
   <div>
-    <NuxtRouteAnnouncer />
-    <NuxtPage />
+    <!-- 認証初期化中のローディング -->
+    <div v-if="isAuthInitializing" class="auth-loading">
+      <div class="loading-spinner"></div>
+      <p>認証情報を確認中...</p>
+    </div>
+
+    <!-- アプリのメインコンテンツ -->
+    <NuxtPage v-else />
   </div>
 </template>
 
 <script setup>
-// Nuxt3のメタデータ設定
-useHead({
-  titleTemplate: '%s - SHARE',
-  meta: [
-    { charset: 'utf-8' },
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-    { name: 'description', content: 'Twitter風SNSアプリ - SHARE' }
-  ]
+import { ref, onMounted } from 'vue'
+import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
+
+const { initAuth } = useFirebaseAuth()
+const isAuthInitializing = ref(true)
+
+onMounted(async () => {
+  try {
+    await initAuth()
+  } catch (error) {
+    console.error('認証初期化エラー:', error)
+  } finally {
+    isAuthInitializing.value = false
+  }
 })
 </script>
 
 <style>
-/* グローバルスタイルのリセット */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+.auth-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #1a1a2e;
+  color: white;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #333;
+  border-top: 4px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

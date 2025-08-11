@@ -12,7 +12,7 @@
         <!-- ログインフォーム -->
         <div class="form-container">
             <h2 class="form-title">ログイン</h2>
-        
+
             <form @submit.prevent="handleLogin" class="form">
                 <!-- メールアドレス -->
                 <input
@@ -38,15 +38,25 @@
                 </button>
             </form>
 
+            <!-- エラーメッセージ -->
+            <div v-if="errorMessage" class="error-message">
+                {{ errorMessage }}
+            </div>
+
+            <!-- テスト用のセクション（開発時のみ表示） -->
             <div class="debug-section" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                 <p style="font-size: 14px; color: #666;">開発用テストログイン:</p>
                 <button 
                     @click="handleTestLogin" 
                     class="btn-secondary" 
                     style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;"
+                    :disabled="isLoading"
                 >
                     テストユーザーでログイン
                 </button>
+                <p style="font-size: 12px; color: #999; margin-top: 8px;">
+                    テスト用アカウント: test@example.com / password123
+                </p>
             </div>
         </div>
     </div>
@@ -54,9 +64,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
+import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { login, checkAuthStatus, isLoggedIn } = useAuth()
+const {
+    login,
+    isLoggedIn,
+    isLoading,
+    getErrorMessage
+} = useFirebaseAuth()
 
 
 // フォームデータ
@@ -65,10 +80,9 @@ const form = ref({
     password: ''
 })
 
-const isLoading = ref(false)
+const errorMessage = ref('')
 
 onMounted(() => {
-    checkAuthStatus()
     if (isLoggedIn.value) {
         navigateTo('/')
     }
@@ -80,62 +94,38 @@ const handleLogin = async () => {
     try {
         // バリデーション
         if (!form.value.email || !form.value.password) {
-            alert('メールアドレスとパスワードを入力してください')
+            errorMessage.value = 'メールアドレスとパスワードを入力してください'
             return
         }
 
-        isLoading.value = true
+        errorMessage.value = ''
 
+        await login(form.value.email, form.value.password)
 
-        // TODO: Laravel APIにログインリクエストを送信
-        console.log('ログイン試行:', form.value)
+        console.log('Firebase ログイン成功')
 
-        // 仮の処理（後でAPI連携に置き換え）
-        // 簡単なバリデーション（デモ用）
-        if (form.value.email === 'test@example.com' && form.value.password === 'password') {
-            // ログイン成功の処理
-            const userData = {
-                id: 1,
-                name: 'Test User',
-                email: form.value.email
-            }
-
-            login(userData, 'dummy_token_12345')
-
-            alert('ログインしました！')
-
-            // ホーム画面にリダイレクト
-            await navigateTo('/')
-
-        } else {
-            alert('メールアドレスまたはパスワードが間違っています\n（テスト用: test@example.com / password）')
-        }
+        await navigateTo('/')
 
     } catch (error) {
         console.error('ログインエラー:', error)
-        alert('ログインに失敗しました')
-    } finally {
-        isLoading.value = false
+        errorMessage.value = getErrorMessage(error)
     }
 }
 
 // テスト用ログイン（開発中のみ）
 const handleTestLogin = async () => {
     try {
-        const userData = {
-            id: 1,
-            name: 'Test User',
-            email: 'test@example.com'
-        }
+        errorMessage.value = ''
 
-        login(userData, 'dummy_token_12345')
-
-        alert('テストログインしました！')
+        // テスト用認証情報
+        await login('test@example.com', 'password123')
+        
+        console.log('テストログイン成功')
         await navigateTo('/')
 
     } catch (error) {
         console.error('テストログインエラー:', error)
-        alert('テストログインに失敗しました')
+        errorMessage.value = getErrorMessage(error)
     }
 }
 
@@ -244,5 +234,16 @@ useHead({
 
 .btn-primary:hover {
     background-color: #7c3dea;
+}
+
+.error-message {
+    background-color: #fee2e2;
+    color: #dc2626;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #fecaca;
 }
 </style>
