@@ -8,13 +8,14 @@ use App\Models\Comment;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 class PostController extends Controller
 {
     public function index(): JsonResponse
     {
         try {
-            $posts = Post::latest()->get();
+            $posts = Post::with('comments')->latest()->get();
 
             return response()->json([
                 'status' => 'success',
@@ -63,6 +64,9 @@ class PostController extends Controller
     public function show(Post $post): JsonResponse
     {
         try {
+
+            $post->load('comments');
+
             return response()->json([
                 'status' => 'success',
                 'data' => $post
@@ -79,7 +83,7 @@ class PostController extends Controller
     {
         try {
             $validated = $request->validate([
-                'likes_count' => 'sometimes|integer|min:0'
+                'content' => 'sometimes|string|max:120',
             ]);
 
             $post->update($validated);
@@ -102,7 +106,6 @@ class PostController extends Controller
                 'message' => '投稿の更新に失敗しました'
             ], 500);
         }
-
     }
 
     public function destroy(Post $post): JsonResponse
@@ -122,38 +125,37 @@ class PostController extends Controller
         }
     }
 
-    public function like(Post $post): JsonResponse
+    public function like(Request $request, Post $post): JsonResponse
     {
         try {
-            $post->increment('likes_count');
+            $validated = $request->validate([
+                'user_id' => 'required|string|max:50',
+                'user_name' => 'required|string|max:20'
+            ]);
+
+            $existingLike = Like::byPostAndUser($post->id, $validated['user_id'])->first();
+
+            if ($existingLike) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => '既にいいねしています'
+                ], 400);
+            }
+
+            DB::transaction(function () use ($post, $validated) {
+                Like::create([
+                    'post_id' => $post->id,
+                    'user_id' => $validated['user_id'],
+                    'user_name' => $validated['user_name']
+                ]);
+            });
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'いいねしました',
-                'data' => $post
+                'data' => $post->fresh()
             ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'いいねに失敗しました'
-            ], 500);
-        }
-    }
-
-    public function byUser(Request $request): JsonResponse
-    {
-        try {
-            $validated = $request->validate([
-                'user_id' => 'required|string'
-            ]);
-
-            $posts = Post::byUser($validated['user_id'])->latest()->get();
-
-            return response()->json([
-                'status' => 'success',
-                'data' => $posts
-            ]);
-        } catch (ValidationException $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'バリデーションエラー',
@@ -162,18 +164,109 @@ class PostController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
+                'message' => 'いいねに失敗しました'
+            ], 500);
+        }
+    }
+
+    public function unlike(Request $request, Post $post): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|string|max:50'
+            ]);
+
+            $like = Like::byPostAndUser($post->id, $validated['user_id'])->first();
+
+            if (!$like) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'いいねしていません'
+                ], 400);
+            }
+
+            DB::transaction(function () use ($like) {
+                $like->delete();
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'いいねを取り消しました',
+                'data' => $post->fresh()
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'バリデーションエラー',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'いいね取り消しに失敗しました'
+            ], 500);
+        }
+    }
+
+    public function checkLikeStatus(Request $request, Post $post): JsonResponse
+    {
+        try {
+            $userId = $request->query('user_id');
+
+            if (!$userId) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザーIDが必要です'
+                ], 400);
+            }
+
+            $isLiked = Like::isLikedByUser($post->id, $userId);
+            $likesCount = Like::getPostLikesCount($post->id);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'is_liked' => $isLiked,
+                    'likes_count' => $likesCount
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'いいね状態の取得に失敗しました'
+            ], 500);
+        }
+    }
+
+    public function byUser(string $userId): JsonResponse
+    {
+        try {
+            if (empty($userId) || strlen($userId) > 50) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => '無効なユーザーIDです'
+                ], 400);
+            }
+
+            $posts = Post::byUser($userId)->latest()->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $posts
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
                 'message' => '投稿の取得に失敗しました'
             ], 500);
         }
     }
 
-    public function getComments($postId): JsonResponse
+    public function getComments(string $postId): JsonResponse
     {
         try {
             $post = Post::findOrFail($postId);
-            $comments = Comment::where('post_id', $postId)
-                            ->orderBy('created_at', 'desc')
-                            ->get();
+            $comments = Comment::byPost($postId)->latest()->get();
 
             return response()->json([
                 'status' => 'success',
@@ -192,10 +285,11 @@ class PostController extends Controller
         }
     }
 
-    public function storeComment(Request $request, $postId): JsonResponse
+    public function storeComment(Request $request, string $postId): JsonResponse
     {
         try {
             $post = Post::findOrFail($postId);
+
             $validated = $request->validate([
                 'user_id' => 'required|string|max:50',
                 'user_name' => 'required|string|max:20',
@@ -203,7 +297,11 @@ class PostController extends Controller
             ]);
 
             $validated['post_id'] = $postId;
-            $comment = Comment::create($validated);
+
+            $comment = DB::transaction(function () use ($validated, $post) {
+                $comment = Comment::create($validated);
+                return $comment;
+            });
 
             return response()->json([
                 'status' => 'success',
@@ -229,5 +327,4 @@ class PostController extends Controller
             ], 500);
         }
     }
-
 }

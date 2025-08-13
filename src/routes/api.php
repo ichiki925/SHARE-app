@@ -18,6 +18,8 @@ Route::prefix('posts')->group(function () {
     Route::put('/{post}', [PostController::class, 'update']);
     Route::delete('/{post}', [PostController::class, 'destroy']);
     Route::post('/{post}/like', [PostController::class, 'like']);
+    Route::delete('/{post}/like', [PostController::class, 'unlike']);
+    Route::get('/{post}/like/status', [PostController::class, 'checkLikeStatus']);
     Route::get('/{post}/comments', [PostController::class, 'getComments']);
     Route::post('/{post}/comments', [PostController::class, 'storeComment']);
 });

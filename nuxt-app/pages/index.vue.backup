@@ -28,8 +28,8 @@
           @click="handleTextareaClick"
           :disabled="isSubmitting"
         ></textarea>
-        <button 
-          class="share-btn" 
+        <button
+          class="share-btn"
           @click="handleShare"
           :disabled="isSubmitting || !newPost.trim()"
         >
@@ -55,23 +55,22 @@
       </div>
 
       <div class="timeline">
-        <!-- ローディング表示 -->
         <div v-if="isLoading" class="loading">
           投稿を読み込み中...
         </div>
 
-        <!-- 投稿一覧 -->
         <div v-else>
-          <div 
-            v-for="post in posts" 
+          <div
+            v-for="post in posts"
             :key="post.id"
             class="post"
           >
+
             <div class="post-header">
               <span class="post-user">{{ post.user_name }}</span>
               <div class="post-actions">
                 <span class="like-btn" @click="handleLikeClick(post.id)">
-                  <img src="/images/heart.png" alt="いいね" class="action-icon" /> 
+                  <img src="/images/heart.png" alt="いいね" class="action-icon" />
                   {{ post.likes || 0 }}
                 </span>
                 <span class="cross-btn" @click="handleDeleteClick(post.id)">
@@ -85,7 +84,6 @@
             <p class="post-content">{{ post.content }}</p>
           </div>
 
-          <!-- 投稿がない場合 -->
           <div v-if="posts.length === 0" class="no-posts">
             まだ投稿がありません。最初の投稿をしてみましょう！
           </div>
@@ -101,6 +99,7 @@ import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
 const { user, isLoggedIn, logout } = useFirebaseAuth()
 
+
 const newPost = ref('')
 const posts = ref([])
 const isLoading = ref(false)
@@ -108,16 +107,17 @@ const isSubmitting = ref(false)
 const error = ref('')
 const successMessage = ref('')
 
-const API_BASE_URL = 'http://localhost:8000'
+// Laravel APIのベースURL
+const API_BASE_URL = 'http://localhost'
 
 // 投稿一覧を取得
 const fetchPosts = async () => {
   try {
     isLoading.value = true
     error.value = ''
-    
+
     const response = await $fetch(`${API_BASE_URL}/api/posts`)
-    
+
     if (response.status === 'success') {
       posts.value = response.data.reverse() // 新しい投稿を上に表示
     } else {
@@ -131,12 +131,11 @@ const fetchPosts = async () => {
   }
 }
 
-onMounted(async () => {
+onMounted(async() => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
     return
   }
-  // ページ読み込み時に投稿一覧を取得
   await fetchPosts()
 })
 
@@ -153,7 +152,7 @@ const handleTextareaClick = () => {
   }
 }
 
-// 投稿をシェアする処理（Laravel API連携）
+// 投稿をシェアする処理
 const handleShare = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -188,10 +187,10 @@ const handleShare = async () => {
     if (response.status === 'success') {
       successMessage.value = '投稿しました！'
       newPost.value = ''
-      
+
       // 投稿一覧を再取得して最新状態に更新
       await fetchPosts()
-      
+
       // 成功メッセージを3秒後に消す
       setTimeout(() => {
         successMessage.value = ''
@@ -199,52 +198,11 @@ const handleShare = async () => {
     } else {
       throw new Error('投稿の作成に失敗しました')
     }
-
   } catch (error) {
     error.value = '投稿に失敗しました: ' + error.message
     console.error('投稿エラー:', error)
   } finally {
     isSubmitting.value = false
-  }
-}
-
-// 削除機能
-const handleDeleteClick = async (postId) => {
-  if (!isLoggedIn.value) {
-    navigateTo('/login')
-    return
-  }
-
-  // 削除確認ダイアログ
-  const confirmed = confirm('この投稿を削除しますか？')
-  if (!confirmed) return
-
-  try {
-    error.value = ''
-    successMessage.value = ''
-
-    // Laravel APIで投稿を削除
-    const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`, {
-      method: 'DELETE'
-    })
-
-    if (response.status === 'success') {
-      successMessage.value = '投稿を削除しました'
-      
-      // 投稿一覧を再取得して最新状態に更新
-      await fetchPosts()
-      
-      // 成功メッセージを3秒後に消す
-      setTimeout(() => {
-        successMessage.value = ''
-      }, 3000)
-    } else {
-      throw new Error('投稿の削除に失敗しました')
-    }
-
-  } catch (err) {
-    error.value = '投稿の削除に失敗しました: ' + err.message
-    console.error('投稿削除エラー:', err)
   }
 }
 
@@ -272,15 +230,56 @@ const handleLikeClick = (postId) => {
     navigateTo('/login')
     return
   }
-  console.log('いいね機能（後で実装）', postId)
+  console.log('いいね機能（後で実装）')
   alert('いいね機能は後で実装します')
 }
+
+const handleDeleteClick = async (postId) => {
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+
+  // 削除確認ダイアログ
+  const confirmed = confirm('この投稿を削除しますか？')
+  if (!confirmed) return
+
+  try {
+    error.value = ''
+    successMessage.value = ''
+
+    // Laravel APIで投稿を削除
+    const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`, {
+      method: 'DELETE'
+    })
+
+    if (response.status === 'success') {
+      successMessage.value = '投稿を削除しました'
+
+      // 投稿一覧を再取得して最新状態に更新
+      await fetchPosts()
+
+      // 成功メッセージを3秒後に消す
+      setTimeout(() => {
+        successMessage.value = ''
+      }, 3000)
+    } else {
+      throw new Error('投稿の削除に失敗しました')
+    }
+
+  } catch (err) {
+    error.value = '投稿の削除に失敗しました: ' + err.message
+    console.error('投稿削除エラー:', err)
+  }
+}
+
 
 const handleDetailClick = (postId) => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
     return
   }
+  // 投稿詳細画面に遷移
   console.log('投稿詳細画面に遷移', postId)
   navigateTo(`/post/${postId}`)
 }
@@ -345,6 +344,7 @@ useHead({
   background-color: #333333;
 }
 
+
 .nav-icon {
   font-size: 1.25rem;
   width: 1.5rem;
@@ -386,20 +386,19 @@ useHead({
   cursor: not-allowed;
 }
 
+
 .share-textarea::placeholder {
   color: #9ca3af;
 }
 
+
 .share-btn {
   position: relative;
-  display: inline-block;
+  display: inline-inline;
   padding: 8px 28px;
   color: #fff;
   background: #6d28d9;
   border-radius: 9999px;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.3s, opacity 0.3s;
 }
 
 .share-btn:disabled {
@@ -407,10 +406,12 @@ useHead({
   cursor: not-allowed;
 }
 
+
+/* 左と上だけの細い線（影で描く） */
 .share-btn::before{
-  --outline: #d8d8d8;
-  --thick:   2px;
-  --spread:  0px;
+  --outline: #d8d8d8;   /* ← 線の色（ここだけ変えればOK） */
+  --thick:   2px;       /* ← 線の太さ（1～3pxあたり） */
+  --spread:  0px;       /* ← 外側への張り出し。1px増やすと外に出る */
 
   content: "";
   position: absolute;
@@ -418,12 +419,16 @@ useHead({
   border-radius: inherit;
   pointer-events: none;
 
+  /* [x-offset y-offset blur spread color] を2本 */
   box-shadow:
-    0 calc(-1*var(--thick)) 0 var(--spread) var(--outline),
-    calc(-1*var(--thick)) 0 0 var(--spread) var(--outline);
+    0 calc(-1*var(--thick)) 0 var(--spread) var(--outline),  /* 上の線 */
+    calc(-1*var(--thick)) 0 0 var(--spread) var(--outline);  /* 左の線 */
 }
 
-.share-btn:hover:not(:disabled) {
+
+
+
+.share-btn:hover {
   background-color: #7c3aed;
 }
 
@@ -469,6 +474,7 @@ useHead({
   border-left: 1px solid #ffffff;
 }
 
+
 .timeline {
   padding: 1rem;
   border-left: 1px solid #ffffff;
@@ -479,25 +485,20 @@ useHead({
   background-color: transparent;
   border-radius: 0;
   padding: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   border: none;
-  border-bottom: 1px solid #333333;
-}
-
-.post:last-child {
-  border-bottom: none;
 }
 
 .post-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 0.5rem;
 }
 
 .post-user {
   font-weight: 600;
   color: #f3f4f6;
+  margin-right: 1rem;
 }
 
 .post-actions {
@@ -510,9 +511,6 @@ useHead({
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   transition: background-color 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
 }
 
 .post-actions span:hover {
@@ -530,18 +528,9 @@ useHead({
   color: #e5e7eb;
   line-height: 1.5;
   margin: 0;
-  word-wrap: break-word;
-}
-
-.no-posts {
-  text-align: center;
-  padding: 3rem;
-  color: #9ca3af;
-  font-style: italic;
 }
 
 .logout-btn:hover {
   background-color: #7f1d1d !important;
 }
 </style>
-

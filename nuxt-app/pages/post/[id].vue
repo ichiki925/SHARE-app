@@ -24,8 +24,15 @@
           class="share-textarea"
           placeholder="今何してる？"
           maxlength="120"
+          :disabled="isSubmitting"
         ></textarea>
-        <button class="share-btn" @click="handleShare">シェアする</button>
+        <button
+          class="share-btn"
+          @click="handleShare"
+          :disabled="isSubmitting || !newPost.trim()"
+        >
+          {{ isSubmitting ? '投稿中...' : 'シェアする' }}
+        </button>
       </div>
     </div>
 
@@ -35,17 +42,34 @@
         <h1>コメント</h1>
       </header>
 
-      <div class="detail-content">
+      <!-- エラーメッセージ -->
+      <div v-if="error" class="error-message">
+        {{ error }}
+      </div>
+
+      <!-- 成功メッセージ -->
+      <div v-if="successMessage" class="success-message">
+        {{ successMessage }}
+      </div>
+
+      <!-- ローディング -->
+      <div v-if="isLoading" class="loading">
+        投稿を読み込み中...
+      </div>
+
+      <div v-else-if="post" class="detail-content">
+
+
         <!-- 元の投稿 -->
         <div class="original-post">
           <div class="post-header">
-            <span class="post-user">{{ post.username }}</span>
+            <span class="post-user">{{ post.user_name }}</span>
             <div class="post-actions">
               <span class="like-btn" @click="handleLike">
-                <img src="/images/heart.png" alt="いいね" class="action-icon" /> 
-                {{ post.likes_count }}
+                <img src="/images/heart.png" alt="いいね" class="action-icon" />
+                {{ post.likes_count || 0 }}
               </span>
-              <span class="cross-btn" @click="handleClose">
+              <span class="cross-btn" @click="handleDeletePost">
                 <img src="/images/cross.png" alt="削除" class="action-icon" />
               </span>
             </div>
@@ -60,8 +84,7 @@
           <div class="comments-list">
             <div v-for="comment in comments" :key="comment.id" class="comment-item">
               <div class="comment-header">
-                <span class="comment-user">{{ comment.username }}</span>
-                <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
+                <span class="comment-user">{{ comment.user_name }}</span>
               </div>
               <p class="comment-content">{{ comment.content }}</p>
             </div>
@@ -83,12 +106,22 @@
               placeholder="コメントを入力..."
               maxlength="120"
               @keyup.enter="handleComment"
+              :disabled="isCommentSubmitting"
             />
           </div>
           <div class="comment-btn-container">
-            <button class="comment-btn" @click="handleComment">コメント</button>
+            <button
+              class="comment-btn"
+              @click="handleComment"
+              :disabled="isCommentSubmitting || !newComment.trim()"
+            >
+              {{ isCommentSubmitting ? 'コメント中...' : 'コメント' }}
+            </button>
           </div>
         </div>
+      </div>
+      <div v-else-if="!isLoading" class="not-found">
+        投稿が見つかりません
       </div>
     </div>
   </div>
@@ -97,186 +130,240 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from '#app'
-import { useAuth } from '~/composables/useAuth'
+import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { isLoggedIn, checkAuthStatus, logout, requireAuth } = useAuth()
+
+const { user, isLoggedIn, logout } = useFirebaseAuth()
 const route = useRoute()
 
 
 // リアクティブデータ
 const newPost = ref('')
 const newComment = ref('')
-const post = ref({
-  id: 1,
-  username: 'test',
-  content: 'test message',
-  likes_count: 1,
-  created_at: new Date()
-})
+const post = ref(null)
+const comments = ref([])
+const isLoading = ref(false)
+const isSubmitting = ref(false)
+const isCommentSubmitting = ref(false)
+const error = ref('')
+const successMessage = ref('')
 
-const comments = ref([
-  {
-    id: 1,
-    username: 'test',
-    content: 'test comment',
-    created_at: new Date()
-  }
-])
+const API_BASE_URL = 'http://localhost:8000'
 
-onMounted(() => {
-  checkAuthStatus()
+
+onMounted(async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
     return
   }
-  fetchPostDetail()
+  await fetchPostDetail()
 })
 
 // 投稿詳細を取得
 const fetchPostDetail = async () => {
   try {
+    isLoading.value = true
+    error.value = ''
+
     const postId = route.params.id
-    // TODO: Laravel APIから投稿詳細とコメントを取得
-    console.log('投稿詳細取得:', postId)
 
-    // 実際のAPI実装時はここでデータを取得
-    // const response = await $fetch(`/api/posts/${postId}`)
-    // post.value = response.post
-    // comments.value = response.comments
+    // Laravel APIから投稿詳細を取得
+    const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`)
 
-  } catch (error) {
-    console.error('投稿詳細取得エラー:', error)
+    if (response.status === 'success') {
+      post.value = response.data
+      // コメントも一緒に取得する場合（Laravel側でコメントも返す場合）
+      if (response.data.comments) {
+        comments.value = response.data.comments
+      }
+    } else {
+      throw new Error('投稿が見つかりません')
+    }
+
+  } catch (err) {
+    error.value = '投稿の取得に失敗しました: ' + err.message
+    console.error('投稿詳細取得エラー:', err)
+  } finally {
+    isLoading.value = false
   }
 }
 
 // いいね処理
 const handleLike = async () => {
-  requireAuth(async () => {
-    try {
-      // TODO: Laravel APIにいいねリクエスト
-      console.log('いいね:', post.value.id)
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
 
-      // 楽観的更新
-      post.value.likes_count += 1
+  try {
+    console.log('いいね:', post.value.id)
+    alert('いいね機能は後で実装します')
 
-    } catch (error) {
-      console.error('いいねエラー:', error)
-      // エラー時は元に戻す
-      post.value.likes_count -= 1
-    }
-  })
+  } catch (err) {
+    console.error('いいねエラー:', err)
+  }
 }
 
-const handleClose = () => {
-  requireAuth(async () => {
-    if (confirm('この投稿を削除しますか？')) {
-      try {
-        // TODO: Laravel APIに投稿削除リクエスト
-        console.log('投稿削除:', post.value.id)
+const handleDeletePost = async () => {
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
 
-        alert('投稿を削除しました！（API実装後に実際の削除機能が動作します）')
+  const confirmed = confirm('この投稿を削除しますか？')
+  if (!confirmed) return
 
-        // 削除後はホーム画面に戻る
+  try {
+    error.value = ''
+    successMessage.value = ''
+
+    // Laravel APIで投稿を削除
+    const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}`, {
+      method: 'DELETE'
+    })
+
+    if (response.status === 'success') {
+      successMessage.value = '投稿を削除しました'
+
+      // 削除後はホーム画面に戻る
+      setTimeout(() => {
         navigateTo('/')
-
-      } catch (error) {
-        console.error('投稿削除エラー:', error)
-        alert('投稿の削除に失敗しました')
-      }
+      }, 1500)
+    } else {
+      throw new Error('投稿の削除に失敗しました')
     }
-  })
+
+  } catch (err) {
+    error.value = '投稿の削除に失敗しました: ' + err.message
+    console.error('投稿削除エラー:', err)
+  }
 }
+
 
 
 
 // コメント投稿処理
 const handleComment = async () => {
-  requireAuth(async () => {
-    if (!newComment.value.trim()) {
-      alert('コメントを入力してください')
-      return
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+
+  if (!newComment.value.trim()) {
+    error.value = 'コメントを入力してください'
+    return
+  }
+
+  try {
+    isCommentSubmitting.value = true
+    error.value = ''
+    successMessage.value = ''
+
+    // Laravel APIにコメント投稿
+    const commentData = {
+      post_id: post.value.id,
+      user_id: user.value?.uid || 'anonymous',
+      user_name: user.value?.displayName || user.value?.email || 'ゲスト',
+      content: newComment.value.trim()
     }
 
-    try {
-      // TODO: Laravel APIにコメント投稿
-      console.log('新しいコメント:', newComment.value)
+    // コメント投稿APIエンドポイント
+    const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/comments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: commentData
+    })
 
-      // 楽観的更新
-      const comment = {
-        id: Date.now(),
-        username: 'current_user', // 実際はログインユーザー名
-        content: newComment.value,
-        created_at: new Date()
-      }
-
-      comments.value.unshift(comment)
+    if (response.status === 'success') {
+      comments.value.unshift(response.data)
       newComment.value = ''
+      successMessage.value = 'コメントしました！'
 
-      alert('コメントしました！（API実装後に実際のコメント機能が動作します）')
-
-    } catch (error) {
-      console.error('コメントエラー:', error)
-      alert('コメント投稿に失敗しました')
+      setTimeout(() => {
+        successMessage.value = ''
+      }, 3000)
+    } else {
+      throw new Error('コメントの投稿に失敗しました')
     }
-  })
+
+  } catch (err) {
+    error.value = 'コメント投稿に失敗しました: ' + err.message
+    console.error('コメントエラー:', err)
+  } finally {
+    isCommentSubmitting.value = false
+  }
 }
 
 // 投稿をシェアする処理
 const handleShare = async () => {
-  requireAuth(async () => {
-    if (!newPost.value.trim()) {
-      alert('投稿内容を入力してください')
-      return
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+
+  if (!newPost.value.trim()) {
+    error.value = '投稿内容を入力してください'
+    return
+  }
+
+  try {
+    isSubmitting.value = true
+    error.value = ''
+    successMessage.value = ''
+
+    // Laravel APIに投稿を送信
+    const postData = {
+      user_id: user.value?.uid || 'anonymous',
+      user_name: user.value?.displayName || user.value?.email || 'ゲスト',
+      content: newPost.value.trim()
     }
 
-    try {
-      // TODO: Laravel APIに投稿を送信
-      console.log('新しい投稿:', newPost.value)
+    const response = await $fetch(`${API_BASE_URL}/api/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: postData
+    })
 
-      // 投稿成功後、テキストエリアをクリア
+    if (response.status === 'success') {
+      successMessage.value = '投稿しました！'
       newPost.value = ''
-      alert('投稿しました！（API実装後に実際の投稿機能が動作します）')
 
-    } catch (error) {
-      console.error('投稿エラー:', error)
-      alert('投稿に失敗しました')
+      // 成功メッセージを3秒後に消す
+      setTimeout(() => {
+        successMessage.value = ''
+      }, 3000)
+    } else {
+      throw new Error('投稿の作成に失敗しました')
     }
-  })
+
+  } catch (err) {
+    error.value = '投稿に失敗しました: ' + err.message
+    console.error('投稿エラー:', err)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 // ログアウト処理
 const handleLogout = async () => {
-  requireAuth(async () => {
-    try {
-      // TODO: Laravel APIにログアウトリクエスト
-      console.log('ログアウト')
-      logout()
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
 
-      // ログイン画面にリダイレクト
-      await navigateTo('/login')
+  try {
+    console.log('ログアウト')
+    await logout()
+    await navigateTo('/login')
 
-    } catch (error) {
-      console.error('ログアウトエラー:', error)
-    }
-  })
+  } catch (err) {
+    console.error('ログアウトエラー:', err)
+  }
 }
-
-// 時間フォーマット
-const formatTime = (date) => {
-  const now = new Date()
-  const diffInMinutes = Math.floor((now - new Date(date)) / (1000 * 60))
-
-  if (diffInMinutes < 1) return 'たった今'
-  if (diffInMinutes < 60) return `${diffInMinutes}分前`
-
-  const diffInHours = Math.floor(diffInMinutes / 60)
-  if (diffInHours < 24) return `${diffInHours}時間前`
-
-  const diffInDays = Math.floor(diffInHours / 24)
-  return `${diffInDays}日前`
-}
-
-
 
 // SEO設定
 useHead({
@@ -374,9 +461,16 @@ useHead({
   box-sizing: border-box;
 }
 
+.share-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .share-textarea::placeholder {
   color: #9ca3af;
 }
+
+
 
 .share-btn {
   position: relative;
@@ -385,6 +479,15 @@ useHead({
   color: #fff;
   background: #6d28d9;
   border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s, opacity 0.3s;
+
+}
+
+.share-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* 左と上だけの細い線（影で描く） */
@@ -406,7 +509,7 @@ useHead({
 }
 
 
-.share-btn:hover {
+.share-btn:hover:not(:disabled) {
   background-color: #7c3aed;
 }
 
@@ -421,7 +524,6 @@ useHead({
     padding: 1.5rem;
     border-left: 1px solid #ffffff;
     border-bottom: 1px solid #ffffff;
-    
 }
 
 .main-header h1 {
@@ -429,10 +531,39 @@ useHead({
     margin: 0;
 }
 
-/* .detail-content {
-    padding: 1rem;
-    min-height: calc(100vh - 100px);
-} */
+.error-message {
+  background-color: #7f1d1d;
+  color: white;
+  padding: 1rem;
+  margin: 1rem;
+  border-radius: 0.5rem;
+  border-left: 1px solid #ffffff;
+}
+
+.success-message {
+  background-color: #065f46;
+  color: white;
+  padding: 1rem;
+  margin: 1rem;
+  border-radius: 0.5rem;
+  border-left: 1px solid #ffffff;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+  border-left: 1px solid #ffffff;
+}
+
+.not-found {
+  text-align: center;
+  padding: 3rem;
+  color: #9ca3af;
+  font-style: italic;
+  border-left: 1px solid #ffffff;
+}
+
 
 .original-post {
     background-color: transparent;
@@ -450,7 +581,6 @@ useHead({
 .post-user {
   font-weight: 600;
   color: #f3f4f6;
-  margin-right: 1rem;
 }
 
 .post-actions {
@@ -483,6 +613,7 @@ useHead({
   color: #e5e7eb;
   line-height: 1.5;
   margin: 0;
+  word-wrap: break-word;
 }
 
 .comments-section {
@@ -496,6 +627,7 @@ useHead({
     border-left: 1px solid #ffffff;
     border-bottom: 1px solid #ffffff;
     text-align: center;
+    margin: 0;
 }
 
 .comments-list {
@@ -513,7 +645,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  /* margin-bottom: 0.5rem; */
 }
 
 .comment-user {
@@ -521,15 +653,12 @@ useHead({
   color: #f3f4f6;
 }
 
-.comment-time {
-  font-size: 0.875rem;
-  color: #9ca3af;
-}
-
 .comment-content {
   color: #e5e7eb;
   line-height: 1.5;
   margin: 0;
+  word-wrap: break-word;
+
 }
 
 .no-comments {
@@ -561,6 +690,12 @@ useHead({
     font-family: inherit;
     box-sizing: border-box;
 }
+
+.comment-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .comment-input::placeholder {
     color: #9ca3af;
 }
@@ -583,35 +718,40 @@ useHead({
   color: #fff;
   background: #6d28d9;
   border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s, opacity 0.3s;
 }
 
-/* 外側にだけ線を出す影トリック */
+.comment-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .comment-btn::before{
   content: "";
   position: absolute;
-  inset: 0;                  /* ボタンと同じ大きさに重ねる */
+  inset: 0;
   border-radius: inherit;
   pointer-events: none;
-
-  /* ←色・太さ・張り出しの調整はここだけ */
-  /*   [x-offset y-offset blur spread color] を2本 */
   box-shadow:
-    0 -2px 0 0  #d0d0d0,     /* 上の線（yをマイナス）*/
-    -2px 0 0 0 #d0d0d0;      /* 左の線（xをマイナス）*/
+    0 -2px 0 0  #d0d0d0,
+    -2px 0 0 0 #d0d0d0;
 }
 
 
-.comment-btn:hover {
+.comment-btn:hover:not(:disabled) {
   background-color: #7c3aed;
 }
 
 
 
 
-.comment-btn:disabled {
+
+/* .comment-btn:disabled {
   background-color: #6b7280;
   cursor: not-allowed;
-}
+} */
 
 .logout-btn:hover {
   background-color: #7f1d1d !important;
