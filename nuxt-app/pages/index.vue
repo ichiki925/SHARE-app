@@ -70,9 +70,9 @@
             <div class="post-header">
               <span class="post-user">{{ post.user_name }}</span>
               <div class="post-actions">
-                <span class="like-btn" @click="handleLikeClick(post.id)">
+                <span class="like-btn" @click="handleLike(post.id)">
                   <img src="/images/heart.png" alt="いいね" class="action-icon" /> 
-                  {{ post.likes || 0 }}
+                  {{ post.likes_count || 0 }}
                 </span>
                 <span class="cross-btn" @click="handleDeleteClick(post.id)">
                   <img src="/images/cross.png" alt="削除" class="action-icon" />
@@ -267,13 +267,53 @@ const handleLogout = async () => {
   }
 }
 
-const handleLikeClick = (postId) => {
+const handleLike = async (postId) => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
     return
   }
-  console.log('いいね機能（後で実装）', postId)
-  alert('いいね機能は後で実装します')
+
+  try {
+    error.value = ''
+    successMessage.value = ''
+
+    // いいね状態をチェック
+    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${postId}/like/status?user_id=${user.value?.uid}`)
+    const isLiked = statusResponse.data.is_liked
+
+    if (isLiked) {
+      // いいね取り消し
+      await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: { user_id: user.value?.uid || 'anonymous' }
+      })
+      successMessage.value = 'いいねを取り消しました'
+    } else {
+      // いいね追加
+      await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          user_id: user.value?.uid || 'anonymous',
+          user_name: user.value?.displayName || user.value?.email || 'ゲスト'
+        }
+      })
+      successMessage.value = 'いいねしました！'
+    }
+
+    // 投稿一覧を再取得して最新状態に更新
+    await fetchPosts()
+
+    // 成功メッセージを2秒後に消す
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 2000)
+
+  } catch (err) {
+    error.value = 'いいねの処理に失敗しました: ' + err.message
+    console.error('いいねエラー:', err)
+  }
 }
 
 const handleDetailClick = (postId) => {

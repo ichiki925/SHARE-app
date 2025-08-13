@@ -196,10 +196,51 @@ const handleLike = async () => {
   }
 
   try {
-    console.log('いいね:', post.value.id)
-    alert('いいね機能は後で実装します')
+    error.value = ''
+    successMessage.value = ''
+
+    // いいね状態をチェック
+    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like/status?user_id=${user.value?.uid}`)
+    const isLiked = statusResponse.data.is_liked
+    
+    if (isLiked) {
+      // いいね取り消し
+      const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: { user_id: user.value?.uid || 'anonymous' }
+      })
+      
+      if (response.status === 'success') {
+        // 投稿データを再取得して最新のいいね数を反映
+        await fetchPostDetail()
+        successMessage.value = 'いいねを取り消しました'
+      }
+    } else {
+      // いいね追加
+      const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          user_id: user.value?.uid || 'anonymous',
+          user_name: user.value?.displayName || user.value?.email || 'ゲスト'
+        }
+      })
+      
+      if (response.status === 'success') {
+        // 投稿データを再取得して最新のいいね数を反映
+        await fetchPostDetail()
+        successMessage.value = 'いいねしました！'
+      }
+    }
+
+    // 成功メッセージを2秒後に消す
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 2000)
 
   } catch (err) {
+    error.value = 'いいねの処理に失敗しました: ' + err.message
     console.error('いいねエラー:', err)
   }
 }

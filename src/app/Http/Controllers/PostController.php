@@ -15,7 +15,10 @@ class PostController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $posts = Post::with('comments')->latest()->get();
+            $posts = Post::withCount(['likes', 'comments'])
+                    ->with('comments')
+                    ->latest()
+                    ->get();
 
             return response()->json([
                 'status' => 'success',
@@ -64,7 +67,7 @@ class PostController extends Controller
     public function show(Post $post): JsonResponse
     {
         try {
-
+            $post->loadCount(['likes', 'comments']);
             $post->load('comments');
 
             return response()->json([
@@ -248,7 +251,10 @@ class PostController extends Controller
                 ], 400);
             }
 
-            $posts = Post::byUser($userId)->latest()->get();
+            $posts = Post::withCount(['likes', 'comments'])
+                    ->byUser($userId)
+                    ->latest()
+                    ->get();
 
             return response()->json([
                 'status' => 'success',
