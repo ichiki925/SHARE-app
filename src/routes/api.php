@@ -6,12 +6,19 @@ use App\Http\Controllers\PostController;
 
 
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware('firebase.auth')->get('/user', function (Request $request) {
+    $user = $request->attributes->get('firebase_user');
+    return response()->json([
+        'success' => true,
+        'user' => $user
+    ]);
 });
 
 Route::prefix('posts')->group(function () {
     Route::get('/', [PostController::class, 'index']);
+});
+
+Route::middleware('firebase.auth')->prefix('posts')->group(function () {
     Route::post('/', [PostController::class, 'store']);
     Route::get('/user/{user_id}', [PostController::class, 'byUser']);
     Route::get('/{post}', [PostController::class, 'show']);
@@ -23,3 +30,5 @@ Route::prefix('posts')->group(function () {
     Route::get('/{post}/comments', [PostController::class, 'getComments']);
     Route::post('/{post}/comments', [PostController::class, 'storeComment']);
 });
+
+

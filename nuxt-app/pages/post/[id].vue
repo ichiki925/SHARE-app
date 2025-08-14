@@ -61,7 +61,11 @@
                 <img src="/images/heart.png" alt="いいね" class="action-icon" />
                 {{ post.likes_count || 0 }}
               </span>
-              <span class="cross-btn" @click="handleDeletePost">
+              <span
+                v-if="post.is_owner"
+                class="cross-btn"
+                @click="handleDeletePost"
+              >
                 <img src="/images/cross.png" alt="削除" class="action-icon" />
               </span>
             </div>
@@ -121,7 +125,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from '#app'
 import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { user, isLoggedIn, logout } = useFirebaseAuth()
+const { user, isLoggedIn, logout, getAuthToken } = useFirebaseAuth()
 const route = useRoute()
 
 const newPost = ref('')
@@ -144,7 +148,6 @@ onMounted(async () => {
   await fetchPostDetail()
 })
 
-// 投稿詳細を取得
 const fetchPostDetail = async () => {
   try {
     isLoading.value = true
@@ -152,7 +155,18 @@ const fetchPostDetail = async () => {
 
     const postId = route.params.id
 
-    const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`)
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
+    }
+
+    const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    })
 
     if (response.status === 'success') {
       post.value = response.data
@@ -164,7 +178,12 @@ const fetchPostDetail = async () => {
     }
 
   } catch (err) {
-    error.value = '投稿の取得に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else {
+      error.value = '投稿の取得に失敗しました: ' + err.message
+    }
     console.error('投稿詳細取得エラー:', err)
   } finally {
     isLoading.value = false
@@ -181,42 +200,53 @@ const handleLike = async () => {
     error.value = ''
     successMessage.value = ''
 
-    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like/status?user_id=${user.value?.uid}`)
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
+    }
+
+    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like/status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    })
     const isLiked = statusResponse.data.is_liked
 
     if (isLiked) {
-      const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
+      await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: { user_id: user.value?.uid || 'anonymous' }
-      })
-
-      if (response.status === 'success') {
-        await fetchPostDetail()
-        successMessage.value = 'いいねを取り消しました'
-      }
-    } else {
-      const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: {
-          user_id: user.value?.uid || 'anonymous',
-          user_name: user.value?.displayName || user.value?.email || 'ゲスト'
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         }
       })
-
-      if (response.status === 'success') {
-        await fetchPostDetail()
-        successMessage.value = 'いいねしました！'
-      }
+      successMessage.value = 'いいねを取り消しました'
+    } else {
+      await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      successMessage.value = 'いいねしました！'
     }
+
+    await fetchPostDetail()
 
     setTimeout(() => {
       successMessage.value = ''
     }, 2000)
 
   } catch (err) {
-    error.value = 'いいねの処理に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else {
+      error.value = 'いいねの処理に失敗しました: ' + err.message
+    }
     console.error('いいねエラー:', err)
   }
 }
@@ -234,8 +264,18 @@ const handleDeletePost = async () => {
     error.value = ''
     successMessage.value = ''
 
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
+    }
+
     const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
     })
 
     if (response.status === 'success') {
@@ -249,7 +289,14 @@ const handleDeletePost = async () => {
     }
 
   } catch (err) {
-    error.value = '投稿の削除に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else if (err.status === 403) {
+      error.value = '他人の投稿は削除できません'
+    } else {
+      error.value = '投稿の削除に失敗しました: ' + err.message
+    }
     console.error('投稿削除エラー:', err)
   }
 }
@@ -270,19 +317,22 @@ const handleComment = async () => {
     error.value = ''
     successMessage.value = ''
 
-    const commentData = {
-      post_id: post.value.id,
-      user_id: user.value?.uid || 'anonymous',
-      user_name: user.value?.displayName || user.value?.email || 'ゲスト',
-      content: newComment.value.trim()
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
     }
 
     const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/comments`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: commentData
+      body: {
+        content: newComment.value.trim()
+      }
     })
 
     if (response.status === 'success') {
@@ -298,7 +348,12 @@ const handleComment = async () => {
     }
 
   } catch (err) {
-    error.value = 'コメント投稿に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else {
+      error.value = 'コメント投稿に失敗しました: ' + err.message
+    }
     console.error('コメントエラー:', err)
   } finally {
     isCommentSubmitting.value = false
@@ -321,19 +376,24 @@ const handleShare = async () => {
     error.value = ''
     successMessage.value = ''
 
-    const postData = {
-      user_id: user.value?.uid || 'anonymous',
-      user_name: user.value?.displayName || user.value?.email || 'ゲスト',
-      content: newPost.value.trim()
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
     }
 
     const response = await $fetch(`${API_BASE_URL}/api/posts`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: postData
+      body: {
+        content: newPost.value.trim()
+      }
     })
+
 
     if (response.status === 'success') {
       successMessage.value = '投稿しました！'
@@ -347,7 +407,12 @@ const handleShare = async () => {
     }
 
   } catch (err) {
-    error.value = '投稿に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else {
+      error.value = '投稿に失敗しました: ' + err.message
+    }
     console.error('投稿エラー:', err)
   } finally {
     isSubmitting.value = false

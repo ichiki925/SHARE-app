@@ -1,4 +1,3 @@
-// composables/useFirebaseAuth.js
 import { ref, computed, readonly } from 'vue'
 import {
   signInWithEmailAndPassword,
@@ -24,7 +23,7 @@ export const useFirebaseAuth = () => {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-            photoURL: firebaseUser.photoURL
+            _firebaseUser: firebaseUser
           }
         } else {
           user.value = null
@@ -44,7 +43,7 @@ export const useFirebaseAuth = () => {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-        photoURL: firebaseUser.photoURL
+        _firebaseUser: firebaseUser
       }
 
       return user.value
@@ -70,7 +69,7 @@ export const useFirebaseAuth = () => {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: username,
-        photoURL: firebaseUser.photoURL
+        _firebaseUser: firebaseUser
       }
 
       return user.value
@@ -93,6 +92,21 @@ export const useFirebaseAuth = () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  const getAuthToken = async () => {
+    if (user.value?._firebaseUser) {
+      try {
+        const token = await user.value._firebaseUser.getIdToken()
+        return token
+      } catch (error) {
+        console.error('トークン取得エラー:', error)
+        // トークン取得に失敗した場合はログアウト
+        await logout()
+        return null
+      }
+    }
+    return null
   }
 
   const getErrorMessage = (error) => {
@@ -124,6 +138,7 @@ export const useFirebaseAuth = () => {
     login,
     register,
     logout,
+    getAuthToken,
     getErrorMessage
   }
 }

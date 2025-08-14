@@ -12,7 +12,12 @@ use Illuminate\Support\Facades\DB;
 
 class PostController extends Controller
 {
-    public function index(): JsonResponse
+    private function getFirebaseUser(Request $request)
+    {
+        return $request->attributes->get('firebase_user');
+    }
+
+    public function index()
     {
         try {
             $posts = Post::withCount(['likes', 'comments'])
@@ -32,15 +37,24 @@ class PostController extends Controller
         }
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
 
     {
         try {
             $validated = $request->validate([
-                'user_id' => 'required|string|max:50',
-                'user_name' => 'required|string|max:20',
                 'content' => 'required|string|max:120'
             ]);
+
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
+            }
+
+            $validated['user_id'] = $user->id;
+            $validated['user_name'] = $user->name ?? $user->email ?? 'Anonymous';
 
             $post = Post::create($validated);
 
@@ -64,15 +78,19 @@ class PostController extends Controller
         }
     }
 
-    public function show(Post $post): JsonResponse
+    public function show(Post $post)
     {
         try {
             $post->loadCount(['likes', 'comments']);
             $post->load('comments');
 
+            $user = $this->getFirebaseUser(request());
+            $postData = $post->toArray();
+            $postData['is_owner'] = $user && $user->id == $post->user_id;
+
             return response()->json([
                 'status' => 'success',
-                'data' => $post
+                'data' => $postData
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -82,9 +100,24 @@ class PostController extends Controller
         }
     }
 
-    public function update(Request $request, Post $post): JsonResponse
+    public function update(Request $request, Post $post)
     {
         try {
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
+            }
+
+            if ($user->id != $post->user_id) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => '他人の投稿は編集できません'
+                ], 403);
+            }
+
             $validated = $request->validate([
                 'content' => 'sometimes|string|max:120',
             ]);
@@ -111,9 +144,24 @@ class PostController extends Controller
         }
     }
 
-    public function destroy(Post $post): JsonResponse
+    public function destroy(Request $request, Post $post)
     {
         try {
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
+            }
+
+            if ($user->id != $post->user_id) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => '他人の投稿は削除できません'
+                ], 403);
+            }
+
             $post->delete();
 
             return response()->json([
@@ -128,15 +176,18 @@ class PostController extends Controller
         }
     }
 
-    public function like(Request $request, Post $post): JsonResponse
+    public function like(Request $request, Post $post)
     {
         try {
-            $validated = $request->validate([
-                'user_id' => 'required|string|max:50',
-                'user_name' => 'required|string|max:20'
-            ]);
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
+            }
 
-            $existingLike = Like::byPostAndUser($post->id, $validated['user_id'])->first();
+            $existingLike = Like::byPostAndUser($post->id, $user->id)->first();
 
             if ($existingLike) {
                 return response()->json([
@@ -145,11 +196,11 @@ class PostController extends Controller
                 ], 400);
             }
 
-            DB::transaction(function () use ($post, $validated) {
+            DB::transaction(function () use ($post, $user) {
                 Like::create([
                     'post_id' => $post->id,
-                    'user_id' => $validated['user_id'],
-                    'user_name' => $validated['user_name']
+                    'user_id' => $user->id,
+                    'user_name' => $user->name ?? $user->email ?? 'Anonymous'
                 ]);
             });
 
@@ -158,12 +209,6 @@ class PostController extends Controller
                 'message' => 'いいねしました',
                 'data' => $post->fresh()
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'バリデーションエラー',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
@@ -172,14 +217,18 @@ class PostController extends Controller
         }
     }
 
-    public function unlike(Request $request, Post $post): JsonResponse
+    public function unlike(Request $request, Post $post)
     {
         try {
-            $validated = $request->validate([
-                'user_id' => 'required|string|max:50'
-            ]);
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
+            }
 
-            $like = Like::byPostAndUser($post->id, $validated['user_id'])->first();
+            $like = Like::byPostAndUser($post->id, $user->id)->first();
 
             if (!$like) {
                 return response()->json([
@@ -197,12 +246,6 @@ class PostController extends Controller
                 'message' => 'いいねを取り消しました',
                 'data' => $post->fresh()
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'バリデーションエラー',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
@@ -211,19 +254,18 @@ class PostController extends Controller
         }
     }
 
-    public function checkLikeStatus(Request $request, Post $post): JsonResponse
+    public function checkLikeStatus(Request $request, Post $post)
     {
         try {
-            $userId = $request->query('user_id');
-
-            if (!$userId) {
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'ユーザーIDが必要です'
-                ], 400);
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
             }
 
-            $isLiked = Like::isLikedByUser($post->id, $userId);
+            $isLiked = Like::isLikedByUser($post->id, $user->id);
             $likesCount = Like::getPostLikesCount($post->id);
 
             return response()->json([
@@ -241,7 +283,7 @@ class PostController extends Controller
         }
     }
 
-    public function byUser(string $userId): JsonResponse
+    public function byUser(string $userId)
     {
         try {
             if (empty($userId) || strlen($userId) > 50) {
@@ -268,7 +310,7 @@ class PostController extends Controller
         }
     }
 
-    public function getComments(string $postId): JsonResponse
+    public function getComments(string $postId)
     {
         try {
             $post = Post::findOrFail($postId);
@@ -291,22 +333,28 @@ class PostController extends Controller
         }
     }
 
-    public function storeComment(Request $request, string $postId): JsonResponse
+    public function storeComment(Request $request, string $postId)
     {
         try {
             $post = Post::findOrFail($postId);
+            $user = $this->getFirebaseUser($request);
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'ユーザー認証が必要です'
+                ], 401);
+            }
 
             $validated = $request->validate([
-                'user_id' => 'required|string|max:50',
-                'user_name' => 'required|string|max:20',
                 'content' => 'required|string|max:120'
             ]);
 
             $validated['post_id'] = $postId;
+            $validated['user_id'] = $user->id;
+            $validated['user_name'] = $user->name ?? $user->email ?? 'Anonymous';
 
-            $comment = DB::transaction(function () use ($validated, $post) {
-                $comment = Comment::create($validated);
-                return $comment;
+            $comment = DB::transaction(function () use ($validated) {
+                return Comment::create($validated);
             });
 
             return response()->json([

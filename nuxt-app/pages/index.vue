@@ -67,7 +67,11 @@
                   <img src="/images/heart.png" alt="いいね" class="action-icon" />
                   {{ post.likes_count || 0 }}
                 </span>
-                <span class="cross-btn" @click="handleDeleteClick(post.id)">
+                <span
+                  v-if="post.user_id === user?.uid"
+                  class="cross-btn"
+                  @click="handleDeleteClick(post.id)"
+                >
                   <img src="/images/cross.png" alt="削除" class="action-icon" />
                 </span>
                 <span class="detail-btn" @click="handleDetailClick(post.id)">
@@ -91,7 +95,7 @@
 import { ref, onMounted } from 'vue'
 import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { user, isLoggedIn, logout } = useFirebaseAuth()
+const { user, isLoggedIn, logout, getAuthToken } = useFirebaseAuth()
 
 const newPost = ref('')
 const posts = ref([])
@@ -155,24 +159,27 @@ const handleShare = async () => {
     error.value = ''
     successMessage.value = ''
 
-    const postData = {
-      user_id: user.value?.uid || 'anonymous',
-      user_name: user.value?.displayName || user.value?.email || 'ゲスト',
-      content: newPost.value.trim()
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
     }
 
     const response = await $fetch(`${API_BASE_URL}/api/posts`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: postData
+      body: {
+        content: newPost.value.trim()
+      }
     })
 
     if (response.status === 'success') {
       successMessage.value = '投稿しました！'
       newPost.value = ''
-
       await fetchPosts()
 
       setTimeout(() => {
@@ -183,7 +190,12 @@ const handleShare = async () => {
     }
 
   } catch (error) {
-    error.value = '投稿に失敗しました: ' + error.message
+    if (error.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else {
+      error.value = '投稿に失敗しました: ' + error.message
+    }
     console.error('投稿エラー:', error)
   } finally {
     isSubmitting.value = false
@@ -203,13 +215,22 @@ const handleDeleteClick = async (postId) => {
     error.value = ''
     successMessage.value = ''
 
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
+    }
+
     const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
     })
 
     if (response.status === 'success') {
       successMessage.value = '投稿を削除しました'
-
       await fetchPosts()
 
       setTimeout(() => {
@@ -220,7 +241,14 @@ const handleDeleteClick = async (postId) => {
     }
 
   } catch (err) {
-    error.value = '投稿の削除に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else if (err.status === 403) {
+      error.value = '他人の投稿は削除できません'
+    } else {
+      error.value = '投稿の削除に失敗しました: ' + err.message
+    }
     console.error('投稿削除エラー:', err)
   }
 }
@@ -249,23 +277,36 @@ const handleLike = async (postId) => {
     error.value = ''
     successMessage.value = ''
 
-    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${postId}/like/status?user_id=${user.value?.uid}`)
+    const token = await getAuthToken()
+    if (!token) {
+      navigateTo('/login')
+      return
+    }
+
+
+    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${postId}/like/status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    })
     const isLiked = statusResponse.data.is_liked
 
     if (isLiked) {
       await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: { user_id: user.value?.uid || 'anonymous' }
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
       })
       successMessage.value = 'いいねを取り消しました'
     } else {
       await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: {
-          user_id: user.value?.uid || 'anonymous',
-          user_name: user.value?.displayName || user.value?.email || 'ゲスト'
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         }
       })
       successMessage.value = 'いいねしました！'
@@ -278,7 +319,12 @@ const handleLike = async (postId) => {
     }, 2000)
 
   } catch (err) {
-    error.value = 'いいねの処理に失敗しました: ' + err.message
+    if (err.status === 401) {
+      await logout()
+      navigateTo('/login')
+    } else {
+      error.value = 'いいねの処理に失敗しました: ' + err.message
+    }
     console.error('いいねエラー:', err)
   }
 }
