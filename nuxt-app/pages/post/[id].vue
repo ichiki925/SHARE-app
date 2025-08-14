@@ -1,6 +1,5 @@
 <template>
   <div class="container">
-    <!-- サイドバー -->
     <div class="sidebar">
       <div class="sidebar-header">
         <img src="/images/logo.png" alt="SHARE" class="logo" />
@@ -36,31 +35,24 @@
       </div>
     </div>
 
-    <!-- メインコンテンツ -->
     <div class="main">
       <header class="main-header">
         <h1>コメント</h1>
       </header>
 
-      <!-- エラーメッセージ -->
       <div v-if="error" class="error-message">
         {{ error }}
       </div>
 
-      <!-- 成功メッセージ -->
       <div v-if="successMessage" class="success-message">
         {{ successMessage }}
       </div>
 
-      <!-- ローディング -->
       <div v-if="isLoading" class="loading">
         投稿を読み込み中...
       </div>
 
       <div v-else-if="post" class="detail-content">
-
-
-        <!-- 元の投稿 -->
         <div class="original-post">
           <div class="post-header">
             <span class="post-user">{{ post.user_name }}</span>
@@ -77,7 +69,6 @@
           <p class="post-content">{{ post.content }}</p>
         </div>
 
-        <!-- コメント一覧 -->
         <div class="comments-section">
           <h3 class="comments-title">コメント</h3>
 
@@ -89,14 +80,12 @@
               <p class="comment-content">{{ comment.content }}</p>
             </div>
 
-            <!-- コメントがない場合 -->
             <div v-if="comments.length === 0" class="no-comments">
               まだコメントがありません
             </div>
           </div>
         </div>
 
-        <!-- コメント投稿フォーム -->
         <div class="comment-form">
           <div class="comment-input-container">
             <input
@@ -132,12 +121,9 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from '#app'
 import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-
 const { user, isLoggedIn, logout } = useFirebaseAuth()
 const route = useRoute()
 
-
-// リアクティブデータ
 const newPost = ref('')
 const newComment = ref('')
 const post = ref(null)
@@ -149,7 +135,6 @@ const error = ref('')
 const successMessage = ref('')
 
 const API_BASE_URL = 'http://localhost:8000'
-
 
 onMounted(async () => {
   if (!isLoggedIn.value) {
@@ -167,12 +152,10 @@ const fetchPostDetail = async () => {
 
     const postId = route.params.id
 
-    // Laravel APIから投稿詳細を取得
     const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`)
 
     if (response.status === 'success') {
       post.value = response.data
-      // コメントも一緒に取得する場合（Laravel側でコメントも返す場合）
       if (response.data.comments) {
         comments.value = response.data.comments
       }
@@ -188,7 +171,6 @@ const fetchPostDetail = async () => {
   }
 }
 
-// いいね処理
 const handleLike = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -199,25 +181,21 @@ const handleLike = async () => {
     error.value = ''
     successMessage.value = ''
 
-    // いいね状態をチェック
     const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like/status?user_id=${user.value?.uid}`)
     const isLiked = statusResponse.data.is_liked
-    
+
     if (isLiked) {
-      // いいね取り消し
       const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: { user_id: user.value?.uid || 'anonymous' }
       })
-      
+
       if (response.status === 'success') {
-        // 投稿データを再取得して最新のいいね数を反映
         await fetchPostDetail()
         successMessage.value = 'いいねを取り消しました'
       }
     } else {
-      // いいね追加
       const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,15 +204,13 @@ const handleLike = async () => {
           user_name: user.value?.displayName || user.value?.email || 'ゲスト'
         }
       })
-      
+
       if (response.status === 'success') {
-        // 投稿データを再取得して最新のいいね数を反映
         await fetchPostDetail()
         successMessage.value = 'いいねしました！'
       }
     }
 
-    // 成功メッセージを2秒後に消す
     setTimeout(() => {
       successMessage.value = ''
     }, 2000)
@@ -258,7 +234,6 @@ const handleDeletePost = async () => {
     error.value = ''
     successMessage.value = ''
 
-    // Laravel APIで投稿を削除
     const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}`, {
       method: 'DELETE'
     })
@@ -266,7 +241,6 @@ const handleDeletePost = async () => {
     if (response.status === 'success') {
       successMessage.value = '投稿を削除しました'
 
-      // 削除後はホーム画面に戻る
       setTimeout(() => {
         navigateTo('/')
       }, 1500)
@@ -280,10 +254,6 @@ const handleDeletePost = async () => {
   }
 }
 
-
-
-
-// コメント投稿処理
 const handleComment = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -300,7 +270,6 @@ const handleComment = async () => {
     error.value = ''
     successMessage.value = ''
 
-    // Laravel APIにコメント投稿
     const commentData = {
       post_id: post.value.id,
       user_id: user.value?.uid || 'anonymous',
@@ -308,7 +277,6 @@ const handleComment = async () => {
       content: newComment.value.trim()
     }
 
-    // コメント投稿APIエンドポイント
     const response = await $fetch(`${API_BASE_URL}/api/posts/${post.value.id}/comments`, {
       method: 'POST',
       headers: {
@@ -337,7 +305,6 @@ const handleComment = async () => {
   }
 }
 
-// 投稿をシェアする処理
 const handleShare = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -354,7 +321,6 @@ const handleShare = async () => {
     error.value = ''
     successMessage.value = ''
 
-    // Laravel APIに投稿を送信
     const postData = {
       user_id: user.value?.uid || 'anonymous',
       user_name: user.value?.displayName || user.value?.email || 'ゲスト',
@@ -373,7 +339,6 @@ const handleShare = async () => {
       successMessage.value = '投稿しました！'
       newPost.value = ''
 
-      // 成功メッセージを3秒後に消す
       setTimeout(() => {
         successMessage.value = ''
       }, 3000)
@@ -389,7 +354,6 @@ const handleShare = async () => {
   }
 }
 
-// ログアウト処理
 const handleLogout = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -406,7 +370,6 @@ const handleLogout = async () => {
   }
 }
 
-// SEO設定
 useHead({
   title: 'コメント - SHARE',
   meta: [
@@ -415,18 +378,41 @@ useHead({
 })
 </script>
 
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: #000000;
+}
+
+#__nuxt {
+  height: 100%;
+  background-color: #000000;
+}
+</style>
+
 <style scoped>
+* {
+  box-sizing: border-box;
+}
+
 .container {
   display: flex;
   min-height: 100vh;
   background-color: #000000;
   color: white;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 
 .sidebar {
   width: 300px;
   background-color: #000000;
   padding: 1.5rem;
+  flex-shrink: 0;
 }
 
 .sidebar-header {
@@ -511,8 +497,6 @@ useHead({
   color: #9ca3af;
 }
 
-
-
 .share-btn {
   position: relative;
   display: inline-inline;
@@ -523,7 +507,6 @@ useHead({
   border: none;
   cursor: pointer;
   transition: background-color 0.3s, opacity 0.3s;
-
 }
 
 .share-btn:disabled {
@@ -531,24 +514,19 @@ useHead({
   cursor: not-allowed;
 }
 
-/* 左と上だけの細い線（影で描く） */
 .share-btn::before{
-  --outline: #d8d8d8;   /* ← 線の色（ここだけ変えればOK） */
-  --thick:   2px;       /* ← 線の太さ（1～3pxあたり） */
-  --spread:  0px;       /* ← 外側への張り出し。1px増やすと外に出る */
-
+  --outline: #d8d8d8;
+  --thick:   2px;
+  --spread:  0px;
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-
-  /* [x-offset y-offset blur spread color] を2本 */
   box-shadow:
-    0 calc(-1*var(--thick)) 0 var(--spread) var(--outline),  /* 上の線 */
-    calc(-1*var(--thick)) 0 0 var(--spread) var(--outline);  /* 左の線 */
+    0 calc(-1*var(--thick)) 0 var(--spread) var(--outline),
+    calc(-1*var(--thick)) 0 0 var(--spread) var(--outline);
 }
-
 
 .share-btn:hover:not(:disabled) {
   background-color: #7c3aed;
@@ -559,12 +537,14 @@ useHead({
   background-color: #000000;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .main-header {
     padding: 1.5rem;
     border-left: 1px solid #ffffff;
     border-bottom: 1px solid #ffffff;
+    flex-shrink: 0;
 }
 
 .main-header h1 {
@@ -605,17 +585,25 @@ useHead({
   border-left: 1px solid #ffffff;
 }
 
+.detail-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 
 .original-post {
     background-color: transparent;
     border-left: 1px solid #ffffff;
     border-bottom: 1px solid #ffffff;
     padding: 1rem;
+    flex-shrink: 0;
 }
 
 .post-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 0.5rem;
 }
 
@@ -655,10 +643,14 @@ useHead({
   line-height: 1.5;
   margin: 0;
   word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .comments-section {
     margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .comments-title {
@@ -669,11 +661,13 @@ useHead({
     border-bottom: 1px solid #ffffff;
     text-align: center;
     margin: 0;
+    flex-shrink: 0;
 }
 
 .comments-list {
-  max-height: 400px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .comment-item {
@@ -686,7 +680,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  /* margin-bottom: 0.5rem; */
+  margin-bottom: 0.5rem;
 }
 
 .comment-user {
@@ -699,7 +693,7 @@ useHead({
   line-height: 1.5;
   margin: 0;
   word-wrap: break-word;
-
+  overflow-wrap: break-word;
 }
 
 .no-comments {
@@ -714,8 +708,6 @@ useHead({
     bottom: 0;
     padding: 0.5rem;
 }
-
-
 
 .comment-input-container {
     margin-bottom: 0.75rem;
@@ -780,25 +772,14 @@ useHead({
     -2px 0 0 0 #d0d0d0;
 }
 
-
 .comment-btn:hover:not(:disabled) {
   background-color: #7c3aed;
 }
-
-
-
-
-
-/* .comment-btn:disabled {
-  background-color: #6b7280;
-  cursor: not-allowed;
-} */
 
 .logout-btn:hover {
   background-color: #7f1d1d !important;
 }
 
-/* スクロールバーのスタイリング */
 .comments-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -814,5 +795,250 @@ useHead({
 
 .comments-list::-webkit-scrollbar-thumb:hover {
   background: #64748b;
+}
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding: 1rem;
+    flex-shrink: 0;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .nav {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .nav-item {
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+  }
+
+  .nav-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .share-section {
+    margin-bottom: 1rem;
+  }
+
+  .share-title {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .share-textarea {
+    height: 80px;
+    margin-bottom: 0.75rem;
+    font-size: 16px;
+    padding: 0.5rem;
+  }
+
+  .share-btn {
+    padding: 6px 20px;
+    font-size: 0.9rem;
+  }
+
+  .main {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .main-header {
+    border-left: none;
+    padding: 1rem;
+  }
+
+  .main-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .detail-content {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .original-post {
+    border-left: none;
+    padding: 0.75rem;
+  }
+
+  .post-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .post-user {
+    font-size: 0.9rem;
+  }
+
+  .post-actions {
+    gap: 0.5rem;
+  }
+
+  .post-actions span {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .action-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .post-content {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .comments-title {
+    border-left: none;
+    padding: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .comments-list {
+    border-left: none;
+  }
+
+  .comment-item {
+    border-left: none;
+    padding: 0.75rem;
+  }
+
+  .comment-header {
+    margin-bottom: 0.25rem;
+  }
+
+  .comment-user {
+    font-size: 0.9rem;
+  }
+
+  .comment-content {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .comment-form {
+    border-left: none;
+    padding: 0.75rem;
+  }
+
+  .comment-input {
+    padding: 0.5rem;
+    font-size: 16px;
+  }
+
+  .comment-btn {
+    padding: 6px 20px;
+    font-size: 0.9rem;
+  }
+
+  .error-message,
+  .success-message {
+    margin: 0.75rem;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .loading,
+  .not-found {
+    padding: 2rem 1rem;
+    font-size: 0.9rem;
+    border-left: none;
+  }
+
+  .no-comments {
+    padding: 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 0.75rem;
+    max-height: 40vh;
+  }
+
+  .share-textarea {
+    height: 60px;
+    font-size: 16px;
+  }
+
+  .original-post {
+    padding: 0.5rem;
+  }
+
+  .post-header {
+    margin-bottom: 0.25rem;
+  }
+
+  .post-user {
+    font-size: 0.85rem;
+  }
+
+  .post-actions span {
+    padding: 0.1rem 0.2rem;
+    font-size: 0.75rem;
+    gap: 0.15rem;
+  }
+
+  .action-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .post-content {
+    font-size: 0.85rem;
+  }
+
+  .comments-title {
+    padding: 0.4rem;
+    font-size: 0.95rem;
+  }
+
+  .comment-item {
+    padding: 0.5rem;
+  }
+
+  .comment-user {
+    font-size: 0.85rem;
+  }
+
+  .comment-content {
+    font-size: 0.85rem;
+  }
+
+  .comment-form {
+    padding: 0.5rem;
+  }
+
+  .comment-input {
+    padding: 0.4rem;
+  }
+
+  .comment-btn {
+    padding: 5px 16px;
+    font-size: 0.85rem;
+  }
+
+  .no-comments {
+    padding: 1rem;
+    font-size: 0.85rem;
+  }
 }
 </style>

@@ -1,8 +1,6 @@
 <template>
   <div class="container">
-    <!-- サイドバー -->
     <div class="sidebar">
-
       <div class="sidebar-header">
         <img src="/images/logo.png" alt="SHARE" class="logo" />
       </div>
@@ -28,8 +26,8 @@
           @click="handleTextareaClick"
           :disabled="isSubmitting"
         ></textarea>
-        <button 
-          class="share-btn" 
+        <button
+          class="share-btn"
           @click="handleShare"
           :disabled="isSubmitting || !newPost.trim()"
         >
@@ -38,32 +36,27 @@
       </div>
     </div>
 
-    <!-- メインコンテンツ -->
     <div class="main">
       <header class="main-header">
         <h1>ホーム</h1>
       </header>
 
-      <!-- エラーメッセージ -->
       <div v-if="error" class="error-message">
         {{ error }}
       </div>
 
-      <!-- 成功メッセージ -->
       <div v-if="successMessage" class="success-message">
         {{ successMessage }}
       </div>
 
       <div class="timeline">
-        <!-- ローディング表示 -->
         <div v-if="isLoading" class="loading">
           投稿を読み込み中...
         </div>
 
-        <!-- 投稿一覧 -->
         <div v-else>
-          <div 
-            v-for="post in posts" 
+          <div
+            v-for="post in posts"
             :key="post.id"
             class="post"
           >
@@ -71,7 +64,7 @@
               <span class="post-user">{{ post.user_name }}</span>
               <div class="post-actions">
                 <span class="like-btn" @click="handleLike(post.id)">
-                  <img src="/images/heart.png" alt="いいね" class="action-icon" /> 
+                  <img src="/images/heart.png" alt="いいね" class="action-icon" />
                   {{ post.likes_count || 0 }}
                 </span>
                 <span class="cross-btn" @click="handleDeleteClick(post.id)">
@@ -85,7 +78,6 @@
             <p class="post-content">{{ post.content }}</p>
           </div>
 
-          <!-- 投稿がない場合 -->
           <div v-if="posts.length === 0" class="no-posts">
             まだ投稿がありません。最初の投稿をしてみましょう！
           </div>
@@ -110,16 +102,15 @@ const successMessage = ref('')
 
 const API_BASE_URL = 'http://localhost:8000'
 
-// 投稿一覧を取得
 const fetchPosts = async () => {
   try {
     isLoading.value = true
     error.value = ''
-    
+
     const response = await $fetch(`${API_BASE_URL}/api/posts`)
-    
+
     if (response.status === 'success') {
-      posts.value = response.data.reverse() // 新しい投稿を上に表示
+      posts.value = response.data
     } else {
       throw new Error('投稿の取得に失敗しました')
     }
@@ -132,11 +123,6 @@ const fetchPosts = async () => {
 }
 
 onMounted(async () => {
-  if (!isLoggedIn.value) {
-    navigateTo('/login')
-    return
-  }
-  // ページ読み込み時に投稿一覧を取得
   await fetchPosts()
 })
 
@@ -153,7 +139,6 @@ const handleTextareaClick = () => {
   }
 }
 
-// 投稿をシェアする処理（Laravel API連携）
 const handleShare = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -170,7 +155,6 @@ const handleShare = async () => {
     error.value = ''
     successMessage.value = ''
 
-    // Laravel APIに投稿を送信
     const postData = {
       user_id: user.value?.uid || 'anonymous',
       user_name: user.value?.displayName || user.value?.email || 'ゲスト',
@@ -188,11 +172,9 @@ const handleShare = async () => {
     if (response.status === 'success') {
       successMessage.value = '投稿しました！'
       newPost.value = ''
-      
-      // 投稿一覧を再取得して最新状態に更新
+
       await fetchPosts()
-      
-      // 成功メッセージを3秒後に消す
+
       setTimeout(() => {
         successMessage.value = ''
       }, 3000)
@@ -208,14 +190,12 @@ const handleShare = async () => {
   }
 }
 
-// 削除機能
 const handleDeleteClick = async (postId) => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
     return
   }
 
-  // 削除確認ダイアログ
   const confirmed = confirm('この投稿を削除しますか？')
   if (!confirmed) return
 
@@ -223,18 +203,15 @@ const handleDeleteClick = async (postId) => {
     error.value = ''
     successMessage.value = ''
 
-    // Laravel APIで投稿を削除
     const response = await $fetch(`${API_BASE_URL}/api/posts/${postId}`, {
       method: 'DELETE'
     })
 
     if (response.status === 'success') {
       successMessage.value = '投稿を削除しました'
-      
-      // 投稿一覧を再取得して最新状態に更新
+
       await fetchPosts()
-      
-      // 成功メッセージを3秒後に消す
+
       setTimeout(() => {
         successMessage.value = ''
       }, 3000)
@@ -248,7 +225,6 @@ const handleDeleteClick = async (postId) => {
   }
 }
 
-// ログアウト処理
 const handleLogout = async () => {
   if (!isLoggedIn.value) {
     navigateTo('/login')
@@ -256,14 +232,10 @@ const handleLogout = async () => {
   }
 
   try {
-    console.log('ログアウト')
     await logout()
-
-    // ログイン画面にリダイレクト
     await navigateTo('/login')
-
-  } catch (error) {
-    console.error('ログアウトエラー:', error)
+  } catch (err) {
+    console.error('ログアウトエラー:', err)
   }
 }
 
@@ -277,12 +249,10 @@ const handleLike = async (postId) => {
     error.value = ''
     successMessage.value = ''
 
-    // いいね状態をチェック
     const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${postId}/like/status?user_id=${user.value?.uid}`)
     const isLiked = statusResponse.data.is_liked
 
     if (isLiked) {
-      // いいね取り消し
       await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -290,7 +260,6 @@ const handleLike = async (postId) => {
       })
       successMessage.value = 'いいねを取り消しました'
     } else {
-      // いいね追加
       await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -302,10 +271,8 @@ const handleLike = async (postId) => {
       successMessage.value = 'いいねしました！'
     }
 
-    // 投稿一覧を再取得して最新状態に更新
     await fetchPosts()
 
-    // 成功メッセージを2秒後に消す
     setTimeout(() => {
       successMessage.value = ''
     }, 2000)
@@ -321,11 +288,10 @@ const handleDetailClick = (postId) => {
     navigateTo('/login')
     return
   }
-  console.log('投稿詳細画面に遷移', postId)
   navigateTo(`/post/${postId}`)
 }
 
-// SEO設定
+
 useHead({
   title: 'ホーム - SHARE',
   meta: [
@@ -334,18 +300,43 @@ useHead({
 })
 </script>
 
+<style>
+/* グローバルスタイル（白い枠を削除） */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: #000000;
+}
+
+#__nuxt {
+  height: 100%;
+  background-color: #000000;
+}
+</style>
+
 <style scoped>
+* {
+  box-sizing: border-box;
+}
+
 .container {
   display: flex;
-  min-height: 100vh;
   background-color: #000000;
   color: white;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
+
 
 .sidebar {
   width: 300px;
   background-color: #000000;
   padding: 1.5rem;
+  flex-shrink: 0;
 }
 
 .sidebar-header {
@@ -469,6 +460,9 @@ useHead({
 
 .main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .main-header {
@@ -476,6 +470,7 @@ useHead({
   border-left: 1px solid #ffffff;
   border-bottom: 1px solid #ffffff;
   background-color: #000000;
+  flex-shrink: 0;
 }
 
 .main-header h1 {
@@ -483,7 +478,6 @@ useHead({
   margin: 0;
 }
 
-/* メッセージスタイル */
 .error-message {
   background-color: #7f1d1d;
   color: white;
@@ -510,7 +504,7 @@ useHead({
 }
 
 .timeline {
-  padding: 1rem;
+  padding: 1rem 1rem 0 1rem;
   border-left: 1px solid #ffffff;
   border-bottom: 1px solid #ffffff;
 }
@@ -571,6 +565,7 @@ useHead({
   line-height: 1.5;
   margin: 0;
   word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .no-posts {
@@ -582,6 +577,179 @@ useHead({
 
 .logout-btn:hover {
   background-color: #7f1d1d !important;
+}
+
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding: 1rem;
+    flex-shrink: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .nav {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .nav-item {
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+  }
+
+  .nav-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .share-section {
+    margin-bottom: 1rem;
+  }
+
+  .share-title {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .share-textarea {
+    height: 80px;
+    margin-bottom: 0.75rem;
+    font-size: 16px; 
+    padding: 0.5rem;
+  }
+
+  .share-btn {
+    padding: 6px 20px;
+    font-size: 0.9rem;
+  }
+
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-header {
+    border-left: none;
+    padding: 1rem;
+    flex-shrink: 0;
+  }
+
+  .main-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .timeline {
+    border-left: none;
+    padding: 0.75rem;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .post {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .post-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .post-user {
+    font-size: 0.9rem;
+  }
+
+  .post-actions {
+    gap: 0.5rem;
+  }
+
+  .post-actions span {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .action-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .post-content {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .error-message,
+  .success-message {
+    margin: 0.75rem;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .loading,
+  .no-posts {
+    padding: 2rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* より小さいスマホ画面 */
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 0.75rem;
+    max-height: 50vh;
+  }
+
+  .share-textarea {
+    height: 60px;
+    font-size: 16px; /* iOS のズーム防止 */
+  }
+
+  .timeline {
+    padding: 0.5rem;
+  }
+
+  .post {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .post-header {
+    margin-bottom: 0.25rem;
+  }
+
+  .post-user {
+    font-size: 0.85rem;
+  }
+
+  .post-actions span {
+    padding: 0.1rem 0.2rem;
+    font-size: 0.75rem;
+    gap: 0.15rem;
+  }
+
+  .action-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .post-content {
+    font-size: 0.85rem;
+  }
 }
 </style>
 

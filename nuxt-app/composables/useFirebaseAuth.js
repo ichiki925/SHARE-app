@@ -1,7 +1,7 @@
 // composables/useFirebaseAuth.js
 import { ref, computed, readonly } from 'vue'
-import { 
-  signInWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
@@ -13,11 +13,9 @@ const user = ref(null)
 const isLoading = ref(false)
 
 export const useFirebaseAuth = () => {
-  
-  // ログイン状態の計算プロパティ
+
   const isLoggedIn = computed(() => !!user.value)
 
-  // 認証状態の監視
   const initAuth = () => {
     return new Promise((resolve) => {
       onAuthStateChanged(auth, (firebaseUser) => {
@@ -36,20 +34,19 @@ export const useFirebaseAuth = () => {
     })
   }
 
-  // ログイン
   const login = async (email, password) => {
     try {
       isLoading.value = true
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const firebaseUser = userCredential.user
-      
+
       user.value = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
         photoURL: firebaseUser.photoURL
       }
-      
+
       return user.value
     } catch (error) {
       console.error('ログインエラー:', error)
@@ -59,25 +56,23 @@ export const useFirebaseAuth = () => {
     }
   }
 
-  // 新規登録
   const register = async (email, password, username) => {
     try {
       isLoading.value = true
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const firebaseUser = userCredential.user
-      
-      // プロフィール情報を更新
+
       await updateProfile(firebaseUser, {
         displayName: username
       })
-      
+
       user.value = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: username,
         photoURL: firebaseUser.photoURL
       }
-      
+
       return user.value
     } catch (error) {
       console.error('新規登録エラー:', error)
@@ -87,7 +82,6 @@ export const useFirebaseAuth = () => {
     }
   }
 
-  // ログアウト
   const logout = async () => {
     try {
       isLoading.value = true
@@ -101,7 +95,6 @@ export const useFirebaseAuth = () => {
     }
   }
 
-  // エラーメッセージの日本語化
   const getErrorMessage = (error) => {
     switch (error.code) {
       case 'auth/user-not-found':

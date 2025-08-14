@@ -1,6 +1,5 @@
 <template>
     <div class="container">
-        <!-- ヘッダー -->
         <div class="header">
             <img src="/images/logo.png" alt="SHARE" class="logo" />
             <div class="nav">
@@ -9,12 +8,10 @@
             </div>
         </div>
 
-        <!-- ログインフォーム -->
         <div class="form-container">
             <h2 class="form-title">ログイン</h2>
 
             <form @submit.prevent="handleLogin" class="form">
-                <!-- メールアドレス -->
                 <input
                     v-model="form.email"
                     type="email"
@@ -23,7 +20,6 @@
                     required
                 />
 
-                <!-- パスワード -->
                 <input
                     v-model="form.password"
                     type="password"
@@ -32,31 +28,13 @@
                     required
                 />
 
-                <!-- ログインボタン -->
                 <button type="submit" class="btn-primary" :disabled="isLoading">
                     {{ isLoading ? 'ログイン中...' : 'ログイン' }}
                 </button>
             </form>
 
-            <!-- エラーメッセージ -->
             <div v-if="errorMessage" class="error-message">
                 {{ errorMessage }}
-            </div>
-
-            <!-- テスト用のセクション（開発時のみ表示） -->
-            <div class="debug-section" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                <p style="font-size: 14px; color: #666;">開発用テストログイン:</p>
-                <button 
-                    @click="handleTestLogin" 
-                    class="btn-secondary" 
-                    style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;"
-                    :disabled="isLoading"
-                >
-                    テストユーザーでログイン
-                </button>
-                <p style="font-size: 12px; color: #999; margin-top: 8px;">
-                    テスト用アカウント: test@example.com / password123
-                </p>
             </div>
         </div>
     </div>
@@ -73,8 +51,6 @@ const {
     getErrorMessage
 } = useFirebaseAuth()
 
-
-// フォームデータ
 const form = ref({
     email: '',
     password: ''
@@ -88,21 +64,16 @@ onMounted(() => {
     }
 })
 
-
-// ログイン処理
 const handleLogin = async () => {
     try {
-        // バリデーション
+        errorMessage.value = ''
+
         if (!form.value.email || !form.value.password) {
             errorMessage.value = 'メールアドレスとパスワードを入力してください'
             return
         }
 
-        errorMessage.value = ''
-
         await login(form.value.email, form.value.password)
-
-        console.log('Firebase ログイン成功')
 
         await navigateTo('/')
 
@@ -112,24 +83,6 @@ const handleLogin = async () => {
     }
 }
 
-// テスト用ログイン（開発中のみ）
-const handleTestLogin = async () => {
-    try {
-        errorMessage.value = ''
-
-        // テスト用認証情報
-        await login('test@example.com', 'password123')
-        
-        console.log('テストログイン成功')
-        await navigateTo('/')
-
-    } catch (error) {
-        console.error('テストログインエラー:', error)
-        errorMessage.value = getErrorMessage(error)
-    }
-}
-
-// SEO設定
 useHead({
     title: 'ログイン - SHARE',
     meta: [
@@ -232,8 +185,13 @@ useHead({
     margin: 0 auto;
 }
 
-.btn-primary:hover {
-    background-color: #7c3dea;
+.btn-primary:hover:not(:disabled) {
+    background-color: #7c3aed;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .error-message {
@@ -245,5 +203,25 @@ useHead({
     font-size: 14px;
     text-align: center;
     border: 1px solid #fecaca;
+}
+
+@media (max-width: 480px) {
+    .container {
+        align-items: flex-start;
+        padding-top: 5rem;
+    }
+
+    .form-container {
+        margin: 0 auto;
+    }
+
+    .input {
+        font-size: 16px;
+    }
+
+    .btn-primary {
+        width: 100%;
+        max-width: 200px;
+    }
 }
 </style>

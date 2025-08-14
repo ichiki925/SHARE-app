@@ -1,4 +1,3 @@
-// plugins/firebase.client.js
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 
@@ -11,10 +10,8 @@ const firebaseConfig = {
   appId: "1:1093720514792:web:57bb826ae7e6cb1bb1a95d"
 };
 
-// Firebase アプリの初期化
 const app = initializeApp(firebaseConfig)
 
-// Firebase Auth の初期化
 const auth = getAuth(app)
 
 export { auth }

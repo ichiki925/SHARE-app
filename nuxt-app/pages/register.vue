@@ -1,6 +1,6 @@
 <template>
     <div class="container">
-        <!-- ヘッダー -->
+
         <div class="header">
             <img src="/images/logo.png" alt="SHARE" class="logo" />
             <div class="nav">
@@ -9,12 +9,10 @@
             </div>
         </div>
 
-        <!-- 新規登録フォーム -->
         <div class="form-container">
             <h2 class="form-title">新規登録</h2>
-        
+
             <form @submit.prevent="handleRegister" class="form">
-                <!-- ユーザーネーム -->
                 <input
                     v-model="form.username"
                     type="text"
@@ -24,7 +22,6 @@
                     required
                 />
 
-                <!-- メールアドレス -->
                 <input
                     v-model="form.email"
                     type="email"
@@ -33,7 +30,6 @@
                     required
                 />
 
-                <!-- パスワード -->
                 <input
                     v-model="form.password"
                     type="password"
@@ -43,18 +39,15 @@
                     required
                 />
 
-                <!-- 新規登録ボタン -->
                 <button type="submit" class="btn-primary" :disabled="isLoading">
                     {{ isLoading ? '登録中...' : '新規登録' }}
                 </button>
             </form>
 
-            <!-- エラーメッセージ -->
             <div v-if="errorMessage" class="error-message">
                 {{ errorMessage }}
             </div>
 
-            <!-- 成功メッセージ -->
             <div v-if="successMessage" class="success-message">
                 {{ successMessage }}
             </div>
@@ -66,14 +59,13 @@
 import { ref, onMounted } from 'vue'
 import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
-const { 
-    register, 
-    isLoggedIn, 
-    isLoading, 
-    getErrorMessage 
+const {
+    register,
+    isLoggedIn,
+    isLoading,
+    getErrorMessage
 } = useFirebaseAuth()
 
-// フォームデータ
 const form = ref({
     username: '',
     email: '',
@@ -83,18 +75,18 @@ const form = ref({
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// 既にログイン済みの場合はホームにリダイレクト
 onMounted(() => {
     if (isLoggedIn.value) {
         navigateTo('/')
     }
 })
 
-// 新規登録処理
 const handleRegister = async () => {
     try {
-        // バリデーション
-        if (!form.value.username || !form.value.email || !form.value.password) {
+        errorMessage.value = ''
+        successMessage.value = ''
+
+        if (!form.value.username.trim() || !form.value.email.trim() || !form.value.password) {
             errorMessage.value = 'すべての項目を入力してください'
             return
         }
@@ -109,17 +101,12 @@ const handleRegister = async () => {
             return
         }
 
-        errorMessage.value = ''
-        successMessage.value = ''
-
-        // Firebase認証で新規登録
         await register(
-            form.value.email,
+            form.value.email.trim(),
             form.value.password,
-            form.value.username
+            form.value.username.trim()
         )
 
-        console.log('Firebase 新規登録成功')
         successMessage.value = '新規登録が完了しました！ホーム画面に移動します...'
 
         setTimeout(() => {
@@ -129,11 +116,9 @@ const handleRegister = async () => {
     } catch (error) {
         console.error('新規登録エラー:', error)
         errorMessage.value = getErrorMessage(error)
-        successMessage.value = ''
     }
 }
 
-// SEO設定
 useHead({
     title: '新規登録 - SHARE',
     meta: [
@@ -236,8 +221,13 @@ useHead({
     margin: 0 auto;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background-color: #7c3aed;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .error-message {
@@ -260,6 +250,26 @@ useHead({
     font-size: 14px;
     text-align: center;
     border: 1px solid #a7f3d0;
+}
+
+@media (max-width: 480px) {
+    .container {
+        align-items: flex-start;
+        padding-top: 5rem;
+    }
+
+    .form-container {
+        margin: 0 auto;
+    }
+
+    .input {
+        font-size: 16px;
+    }
+
+    .btn-primary {
+        width: 100%;
+        max-width: 200px;
+    }
 }
 
 </style>

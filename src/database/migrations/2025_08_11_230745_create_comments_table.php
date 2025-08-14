@@ -16,15 +16,12 @@ class CreateCommentsTable extends Migration
             $table->text('content');
             $table->timestamps();
 
-            // 外部キー制約
             $table->foreign('post_id')->references('id')->on('posts')->onDelete('cascade');
 
-            // インデックスを追加（パフォーマンス向上のため）
             $table->index('post_id');
             $table->index('user_id');
         });
     }
-
 
     public function down()
     {

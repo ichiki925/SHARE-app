@@ -43,6 +43,4 @@ class Like extends Model
                     ->where('user_id', $userId)
                     ->exists();
     }
-
-
 }

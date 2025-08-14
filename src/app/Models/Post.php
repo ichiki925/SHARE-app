@@ -52,12 +52,8 @@ class Post extends Model
         return $this->comments()->count();
     }
 
-
-
     public function scopeByUser($query, $userId)
     {
         return $query->where('user_id', $userId);
     }
-
-
 }
