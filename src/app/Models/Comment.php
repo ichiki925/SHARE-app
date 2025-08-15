@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Post;
+use App\Models\User;
+
 
 class Comment extends Model
 {
@@ -13,12 +15,12 @@ class Comment extends Model
     protected $fillable = [
         'post_id',
         'user_id',
-        'user_name',
         'content',
     ];
 
     protected $casts = [
         'post_id' => 'integer',
+        'user_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -27,6 +29,12 @@ class Comment extends Model
     {
         return $this->belongsTo(Post::class);
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
 
     public function scopeLatest($query)
     {

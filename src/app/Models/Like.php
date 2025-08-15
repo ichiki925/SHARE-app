@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Post;
+use App\Models\User;
 
 class Like extends Model
 {
@@ -13,11 +14,11 @@ class Like extends Model
     protected $fillable = [
         'post_id',
         'user_id',
-        'user_name',
     ];
 
     protected $casts = [
         'post_id' => 'integer',
+        'user_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -25,6 +26,11 @@ class Like extends Model
     public function post()
     {
         return $this->belongsTo(Post::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function scopeByPostAndUser($query, $postId, $userId)

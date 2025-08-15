@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Like;
 use App\Models\Comment;
+use App\Models\User;
 
 class Post extends Model
 {
@@ -13,7 +14,6 @@ class Post extends Model
 
     protected $fillable = [
         'user_id',
-        'user_name',
         'content',
     ];
 
@@ -21,6 +21,12 @@ class Post extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
 
     public function scopeLatest($query)
     {
