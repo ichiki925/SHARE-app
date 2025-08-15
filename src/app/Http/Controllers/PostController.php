@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\Like;
 use App\Models\Comment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -14,22 +15,50 @@ class PostController extends Controller
 {
     private function getFirebaseUser(Request $request)
     {
-        return $request->attributes->get('firebase_user');
+        $firebaseUser = $request->attributes->get('firebase_user');
+
+        if ($firebaseUser) {
+
+            return User::syncFromFirebase($firebaseUser);
+        }
+
+        return null;
     }
 
     public function index()
     {
         try {
-            $posts = Post::withCount(['likes', 'comments'])
-                    ->with('comments')
+            $posts = Post::with(['user'])
+                    ->withCount(['likes', 'comments'])
                     ->latest()
                     ->get();
 
+            $currentUser = null;
+            
+            // 認証情報があれば取得、なければnullのまま
+            if (request()->attributes->has('firebase_user')) {
+                try {
+                    $currentUser = $this->getFirebaseUser(request());
+                } catch (\Exception $e) {
+                    \Log::warning('Firebase user authentication failed: ' . $e->getMessage());
+                }
+            }
+
+            $posts = $posts->map(function ($post) use ($currentUser) {
+                $postArray = $post->toArray();
+                $postArray['user_name'] = $post->user ? $post->user->name : 'Unknown';
+                
+                // ログインしている場合のみis_ownerを判定、未ログインは常にfalse
+                $postArray['is_owner'] = $currentUser && (int)$currentUser->id === (int)$post->user_id;
+                
+                return $postArray;
+            });
             return response()->json([
                 'status' => 'success',
                 'data' => $posts
             ]);
         } catch (\Exception $e) {
+            \Log::error('Post index error: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => '投稿の取得に失敗しました'
@@ -54,14 +83,18 @@ class PostController extends Controller
             }
 
             $validated['user_id'] = $user->id;
-            $validated['user_name'] = $user->name ?? $user->email ?? 'Anonymous';
 
             $post = Post::create($validated);
+            $post->load('user');
+
+            $postArray = $post->toArray();
+            $postArray['user_name'] = $post->user ? $post->user->name : 'Unknown';
+            $postArray['is_owner'] = true;
 
             return response()->json([
                 'status' => 'success',
                 'message' => '投稿が作成されました',
-                'data' => $post
+                'data' => $postArray
             ], 201);
 
         } catch (ValidationException $e) {
@@ -81,12 +114,22 @@ class PostController extends Controller
     public function show(Post $post)
     {
         try {
-            $post->loadCount(['likes', 'comments']);
-            $post->load('comments');
+            $post->load(['user', 'comments.user'])
+                ->loadCount(['likes', 'comments']);
 
             $user = $this->getFirebaseUser(request());
             $postData = $post->toArray();
-            $postData['is_owner'] = $user && $user->id == $post->user_id;
+
+            $postData['user_name'] = $post->user ? $post->user->name : 'Unknown';
+            $postData['is_owner'] = $user && (int)$user->id === (int)$post->user_id;
+
+            if (isset($postData['comments'])) {
+                $postData['comments'] = collect($postData['comments'])->map(function ($comment) {
+                    $comment['user_name'] = $comment['user']['name'] ?? 'Unknown';
+                    $comment['is_owner'] = $user && $user->id == $comment['user_id'];
+                    return $comment;
+                })->toArray();
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -96,50 +139,6 @@ class PostController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => '投稿の取得に失敗しました'
-            ], 500);
-        }
-    }
-
-    public function update(Request $request, Post $post)
-    {
-        try {
-            $user = $this->getFirebaseUser($request);
-            if (!$user) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'ユーザー認証が必要です'
-                ], 401);
-            }
-
-            if ($user->id != $post->user_id) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => '他人の投稿は編集できません'
-                ], 403);
-            }
-
-            $validated = $request->validate([
-                'content' => 'sometimes|string|max:120',
-            ]);
-
-            $post->update($validated);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => '投稿が更新されました',
-                'data' => $post
-            ]);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'バリデーションエラー',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => '投稿の更新に失敗しました'
             ], 500);
         }
     }
@@ -155,7 +154,7 @@ class PostController extends Controller
                 ], 401);
             }
 
-            if ($user->id != $post->user_id) {
+            if ((int)$user->id !== (int)$post->user_id) {
                 return response()->json([
                     'status' => 'error',
                     'message' => '他人の投稿は削除できません'
@@ -200,14 +199,13 @@ class PostController extends Controller
                 Like::create([
                     'post_id' => $post->id,
                     'user_id' => $user->id,
-                    'user_name' => $user->name ?? $user->email ?? 'Anonymous'
                 ]);
             });
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'いいねしました',
-                'data' => $post->fresh()
+                'data' => $post->fresh(['user'])->loadCount('likes')
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -244,7 +242,7 @@ class PostController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'いいねを取り消しました',
-                'data' => $post->fresh()
+                'data' => $post->fresh(['user'])->loadCount('likes')
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -286,17 +284,17 @@ class PostController extends Controller
     public function byUser(string $userId)
     {
         try {
-            if (empty($userId) || strlen($userId) > 50) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => '無効なユーザーIDです'
-                ], 400);
-            }
-
-            $posts = Post::withCount(['likes', 'comments'])
+            $posts = Post::with('user')
+                    ->withCount(['likes', 'comments'])
                     ->byUser($userId)
                     ->latest()
                     ->get();
+
+            $posts = $posts->map(function ($post) {
+                $postArray = $post->toArray();
+                $postArray['user_name'] = $post->user ? $post->user->name : 'Unknown';
+                return $postArray;
+            });
 
             return response()->json([
                 'status' => 'success',
@@ -314,7 +312,16 @@ class PostController extends Controller
     {
         try {
             $post = Post::findOrFail($postId);
-            $comments = Comment::byPost($postId)->latest()->get();
+            $comments = Comment::with('user')
+                        ->byPost($postId)
+                        ->latest()
+                        ->get();
+
+            $comments = $comments->map(function ($comment) {
+                $commentArray = $comment->toArray();
+                $commentArray['user_name'] = $comment->user ? $comment->user->name : 'Unknown';
+                return $commentArray;
+            });
 
             return response()->json([
                 'status' => 'success',
@@ -351,16 +358,20 @@ class PostController extends Controller
 
             $validated['post_id'] = $postId;
             $validated['user_id'] = $user->id;
-            $validated['user_name'] = $user->name ?? $user->email ?? 'Anonymous';
 
             $comment = DB::transaction(function () use ($validated) {
                 return Comment::create($validated);
             });
 
+            $comment->load('user');
+
+            $commentArray = $comment->toArray();
+            $commentArray['user_name'] = $comment->user ? $comment->user->name : 'Unknown';
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'コメントが作成されました',
-                'data' => $comment
+                'data' => $commentArray
             ], 201);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

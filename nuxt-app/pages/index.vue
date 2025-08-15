@@ -68,7 +68,7 @@
                   {{ post.likes_count || 0 }}
                 </span>
                 <span
-                  v-if="post.user_id === user?.uid"
+                  v-if="post.is_owner"
                   class="cross-btn"
                   @click="handleDeleteClick(post.id)"
                 >
@@ -111,7 +111,19 @@ const fetchPosts = async () => {
     isLoading.value = true
     error.value = ''
 
-    const response = await $fetch(`${API_BASE_URL}/api/posts`)
+    const token = await getAuthToken()
+
+    const headers = {
+      'Accept': 'application/json'
+    }
+
+    if (token && isLoggedIn.value) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const response = await $fetch(`${API_BASE_URL}/api/posts`, {
+      headers
+    })
 
     if (response.status === 'success') {
       posts.value = response.data
@@ -546,7 +558,6 @@ html, body {
   text-align: center;
   padding: 2rem;
   color: #9ca3af;
-  border-left: 1px solid #ffffff;
 }
 
 .timeline {

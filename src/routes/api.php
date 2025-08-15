@@ -14,15 +14,15 @@ Route::middleware('firebase.auth')->get('/user', function (Request $request) {
     ]);
 });
 
-Route::prefix('posts')->group(function () {
+Route::middleware('optional.firebase.auth')->prefix('posts')->group(function () {
     Route::get('/', [PostController::class, 'index']);
 });
+
 
 Route::middleware('firebase.auth')->prefix('posts')->group(function () {
     Route::post('/', [PostController::class, 'store']);
     Route::get('/user/{user_id}', [PostController::class, 'byUser']);
     Route::get('/{post}', [PostController::class, 'show']);
-    Route::put('/{post}', [PostController::class, 'update']);
     Route::delete('/{post}', [PostController::class, 'destroy']);
     Route::post('/{post}/like', [PostController::class, 'like']);
     Route::delete('/{post}/like', [PostController::class, 'unlike']);
