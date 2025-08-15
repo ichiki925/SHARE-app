@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Auth;
 use Exception;
@@ -36,16 +37,19 @@ class FirebaseAuthMiddleware
         }
 
         try {
-            // Bearerトークンを抽出
             $token = substr($authHeader, 7);
+            $cacheKey = 'firebase_user_' . hash('sha256', $token);
 
-            // Firebase認証トークンを検証
+            $cachedUser = Cache::get($cacheKey);
+
+            if ($cachedUser) {
+                $request->attributes->set('firebase_user', $cachedUser);
+                return $next($request);
+            }
+
             $verifiedIdToken = $this->auth->verifyIdToken($token);
-
-            // Firebaseユーザー情報を取得
             $firebaseUser = $this->auth->getUser($verifiedIdToken->claims()->get('sub'));
 
-            // リクエストにユーザー情報を追加
             $user = (object) [
                 'id' => $firebaseUser->uid,
                 'email' => $firebaseUser->email,
@@ -53,11 +57,13 @@ class FirebaseAuthMiddleware
                 'email_verified' => $firebaseUser->emailVerified,
             ];
 
+            Cache::put($cacheKey, $user, 600);
             $request->attributes->set('firebase_user', $user);
 
             return $next($request);
 
         } catch (Exception $e) {
+            \Log::error('Firebase auth error: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Invalid or expired token',
                 'message' => $e->getMessage()

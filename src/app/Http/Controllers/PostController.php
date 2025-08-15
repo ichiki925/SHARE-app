@@ -34,25 +34,28 @@ class PostController extends Controller
                     ->get();
 
             $currentUser = null;
-            
-            // 認証情報があれば取得、なければnullのまま
+            $userLikedPostIds = [];
+
             if (request()->attributes->has('firebase_user')) {
-                try {
-                    $currentUser = $this->getFirebaseUser(request());
-                } catch (\Exception $e) {
-                    \Log::warning('Firebase user authentication failed: ' . $e->getMessage());
+                $currentUser = $this->getFirebaseUser(request());
+
+                if ($currentUser) {
+                    $userLikedPostIds = \App\Models\Like::where('user_id', $currentUser->id)
+                        ->whereIn('post_id', $posts->pluck('id'))
+                        ->pluck('post_id')
+                        ->toArray();
                 }
             }
 
-            $posts = $posts->map(function ($post) use ($currentUser) {
+            $posts = $posts->map(function ($post) use ($currentUser, $userLikedPostIds) {
                 $postArray = $post->toArray();
                 $postArray['user_name'] = $post->user ? $post->user->name : 'Unknown';
-                
-                // ログインしている場合のみis_ownerを判定、未ログインは常にfalse
                 $postArray['is_owner'] = $currentUser && (int)$currentUser->id === (int)$post->user_id;
-                
+                $postArray['user_liked'] = in_array($post->id, $userLikedPostIds);
+
                 return $postArray;
             });
+
             return response()->json([
                 'status' => 'success',
                 'data' => $posts
@@ -86,10 +89,12 @@ class PostController extends Controller
 
             $post = Post::create($validated);
             $post->load('user');
+            $post->loadCount(['likes', 'comments']);
 
             $postArray = $post->toArray();
             $postArray['user_name'] = $post->user ? $post->user->name : 'Unknown';
             $postArray['is_owner'] = true;
+            $postArray['user_liked'] = false;
 
             return response()->json([
                 'status' => 'success',
@@ -122,11 +127,12 @@ class PostController extends Controller
 
             $postData['user_name'] = $post->user ? $post->user->name : 'Unknown';
             $postData['is_owner'] = $user && (int)$user->id === (int)$post->user_id;
+            $postData['user_liked'] = $user ? $post->isLikedByUser($user->id) : false;
 
             if (isset($postData['comments'])) {
-                $postData['comments'] = collect($postData['comments'])->map(function ($comment) {
+                $postData['comments'] = collect($postData['comments'])->map(function ($comment) use ($user) {
                     $comment['user_name'] = $comment['user']['name'] ?? 'Unknown';
-                    $comment['is_owner'] = $user && $user->id == $comment['user_id'];
+                    $comment['is_owner'] = $user && (int)$user->id === (int)$comment['user_id']; // use文を追加
                     return $comment;
                 })->toArray();
             }

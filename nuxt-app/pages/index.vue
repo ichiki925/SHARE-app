@@ -190,9 +190,10 @@ const handleShare = async () => {
     })
 
     if (response.status === 'success') {
+      posts.value.unshift(response.data)
+
       successMessage.value = '投稿しました！'
       newPost.value = ''
-      await fetchPosts()
 
       setTimeout(() => {
         successMessage.value = ''
@@ -287,7 +288,6 @@ const handleLike = async (postId) => {
 
   try {
     error.value = ''
-    successMessage.value = ''
 
     const token = await getAuthToken()
     if (!token) {
@@ -295,14 +295,20 @@ const handleLike = async (postId) => {
       return
     }
 
+    const post = posts.value.find(p => p.id === postId)
+    if (!post) return
 
-    const statusResponse = await $fetch(`${API_BASE_URL}/api/posts/${postId}/like/status`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      }
-    })
-    const isLiked = statusResponse.data.is_liked
+    const isLiked = post.user_liked
+
+    if (isLiked) {
+      post.likes_count = Math.max(0, post.likes_count - 1)
+      post.user_liked = false
+      successMessage.value = 'いいねを取り消しました'
+    } else {
+      post.likes_count = post.likes_count + 1
+      post.user_liked = true
+      successMessage.value = 'いいねしました！'
+    }
 
     if (isLiked) {
       await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
@@ -312,7 +318,6 @@ const handleLike = async (postId) => {
           'Accept': 'application/json'
         }
       })
-      successMessage.value = 'いいねを取り消しました'
     } else {
       await $fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
         method: 'POST',
@@ -321,16 +326,16 @@ const handleLike = async (postId) => {
           'Accept': 'application/json'
         }
       })
-      successMessage.value = 'いいねしました！'
     }
-
-    await fetchPosts()
 
     setTimeout(() => {
       successMessage.value = ''
     }, 2000)
 
   } catch (err) {
+
+    await fetchPosts()
+
     if (err.status === 401) {
       await logout()
       navigateTo('/login')
@@ -359,7 +364,6 @@ useHead({
 </script>
 
 <style>
-/* グローバルスタイル（白い枠を削除） */
 html, body {
   margin: 0;
   padding: 0;
