@@ -27,25 +27,9 @@ class Post extends Model
         return $this->belongsTo(User::class);
     }
 
-
-    public function scopeLatest($query)
-    {
-        return $query->orderBy('created_at', 'desc');
-    }
-
     public function likes()
     {
         return $this->hasMany(Like::class);
-    }
-
-    public function getLikesCountAttribute()
-    {
-        return $this->likes()->count();
-    }
-
-    public function isLikedByUser($userId)
-    {
-        return $this->likes()->where('user_id', $userId)->exists();
     }
 
     public function comments()
@@ -53,13 +37,28 @@ class Post extends Model
         return $this->hasMany(Comment::class);
     }
 
-    public function getCommentsCountAttribute()
+    public function scopeLatest($query)
     {
-        return $this->comments()->count();
+        return $query->orderBy('created_at', 'desc');
     }
 
     public function scopeByUser($query, $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    public function getLikesCountAttribute()
+    {
+        return $this->likes()->count();
+    }
+
+    public function getCommentsCountAttribute()
+    {
+        return $this->comments()->count();
+    }
+
+    public function isLikedByUser($userId)
+    {
+        return $this->likes()->where('user_id', $userId)->exists();
     }
 }
