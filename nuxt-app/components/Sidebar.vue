@@ -38,7 +38,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 
-// 親から受け取るprops
+
 const props = defineProps({
     newPost: {
         type: String,
@@ -58,18 +58,14 @@ const props = defineProps({
     }
 })
 
-// 親に送るemit
 const emit = defineEmits(['update:newPost'])
 
-// ローカルの投稿内容
 const localNewPost = ref(props.newPost)
 
-// 親の newPost が変わったらローカルも更新
 watch(() => props.newPost, (newValue) => {
     localNewPost.value = newValue
 })
 
-// ローカルの値が変わったら親に通知
 watch(localNewPost, (newValue) => {
     emit('update:newPost', newValue)
 })
@@ -134,6 +130,7 @@ const handleShare = () => {
     height: 1.5rem;
     object-fit: contain;
 }
+
 
 .share-section {
     display: flex;
@@ -209,6 +206,7 @@ const handleShare = () => {
 .share-btn:hover:not(:disabled) {
     background-color: #7c3aed;
 }
+
 
 .logout-btn:hover {
     background-color: #7f1d1d !important;

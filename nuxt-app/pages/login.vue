@@ -5,27 +5,29 @@
         <div class="form-container">
             <h2 class="form-title">ログイン</h2>
 
-            <form @submit.prevent="handleLogin" class="form">
-                <input
-                    v-model="form.email"
+            <Form :validation-schema="schema" @submit="onSubmit" v-slot="{ isSubmitting }" class="form">
+                <Field
+                    name="email"
+                    as="input"
                     type="email"
                     placeholder="メールアドレス"
                     class="input"
-                    required
                 />
+                <ErrorMessage name="email" class="error-message" />
 
-                <input
-                    v-model="form.password"
+                <Field
+                    name="password"
+                    as="input"
                     type="password"
                     placeholder="パスワード"
                     class="input"
-                    required
                 />
+                <ErrorMessage name="password" class="error-message" />
 
-                <button type="submit" class="btn-primary" :disabled="isLoading">
-                    {{ isLoading ? 'ログイン中...' : 'ログイン' }}
+                <button type="submit" class="btn-primary" :disabled="isSubmitting || isLoading">
+                    {{ (isSubmitting || isLoading) ? 'ログイン中...' : 'ログイン' }}
                 </button>
-            </form>
+            </Form>
 
             <div v-if="errorMessage" class="error-message">
                 {{ errorMessage }}
@@ -36,7 +38,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-
+import { Form, Field, ErrorMessage } from 'vee-validate'
+import * as yup from 'yup'
 import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
 const {
@@ -46,37 +49,34 @@ const {
     getErrorMessage
 } = useFirebaseAuth()
 
-const form = ref({
-    email: '',
-    password: ''
+const schema = yup.object({
+    email: yup.string()
+        .required('メールアドレスを入力してください')
+        .email('正しいメール形式で入力してください'),
+    password: yup.string()
+        .required('パスワードを入力してください'),
 })
 
-const errorMessage = ref('')
+const errorMessage = ref('') // 想定外エラーの表示用（任意）
+
+const onSubmit = async (values, { setFieldError }) => {
+    try {
+        errorMessage.value = ''
+        await login(values.email.trim(), values.password)
+        await navigateTo('/')
+    } catch (e) {
+        // Firebaseのエラーをフィールドに反映（＋全体にも表示したい場合は下行を残す）
+        const msg = getErrorMessage(e)
+        setFieldError('email', msg)
+        errorMessage.value = msg // 任意
+    }
+}
 
 onMounted(() => {
     if (isLoggedIn.value) {
         navigateTo('/')
     }
 })
-
-const handleLogin = async () => {
-    try {
-        errorMessage.value = ''
-
-        if (!form.value.email || !form.value.password) {
-            errorMessage.value = 'メールアドレスとパスワードを入力してください'
-            return
-        }
-
-        await login(form.value.email, form.value.password)
-
-        await navigateTo('/')
-
-    } catch (error) {
-        console.error('ログインエラー:', error)
-        errorMessage.value = getErrorMessage(error)
-    }
-}
 
 useHead({
     title: 'ログイン - SHARE',

@@ -5,37 +5,44 @@
         <div class="form-container">
             <h2 class="form-title">新規登録</h2>
 
-            <form @submit.prevent="handleRegister" class="form">
-                <input
-                    v-model="form.username"
+            <Form :validation-schema="schema" @submit="onSubmit" v-slot="{ isSubmitting }" class="form">
+                <Field
+                    name="username"
+                    as="input"
                     type="text"
+                    class="input"
                     placeholder="ユーザーネーム"
-                    class="input"
                     maxlength="20"
-                    required
                 />
+                <ErrorMessage name="username" class="error-message" />
 
-                <input
-                    v-model="form.email"
+                <Field
+                    name="email"
+                    as="input"
                     type="email"
+                    class="input"
                     placeholder="メールアドレス"
-                    class="input"
-                    required
+                    autocomplete="email"
+                    autocapitalize="off"
+                    spellcheck="false"
                 />
+                <ErrorMessage name="email" class="error-message" />
 
-                <input
-                    v-model="form.password"
+                <Field
+                    name="password"
+                    as="input"
                     type="password"
-                    placeholder="パスワード (6文字以上)"
                     class="input"
+                    placeholder="パスワード (6文字以上)"
                     minlength="6"
-                    required
+                    autocomplete="new-password"
                 />
+                <ErrorMessage name="password" class="error-message" />
 
-                <button type="submit" class="btn-primary" :disabled="isLoading">
-                    {{ isLoading ? '登録中...' : '新規登録' }}
+                <button type="submit" class="btn-primary" :disabled="isSubmitting || isLoading">
+                {{ (isSubmitting || isLoading) ? '登録中...' : '新規登録' }}
                 </button>
-            </form>
+            </Form>
 
             <div v-if="errorMessage" class="error-message">
                 {{ errorMessage }}
@@ -50,6 +57,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { Form, Field, ErrorMessage } from 'vee-validate'
+import * as yup from 'yup'
 import { useFirebaseAuth } from '~/composables/useFirebaseAuth'
 
 const {
@@ -59,58 +68,50 @@ const {
     getErrorMessage
 } = useFirebaseAuth()
 
-const form = ref({
-    username: '',
-    email: '',
-    password: ''
+const schema = yup.object({
+    username: yup.string()
+        .required('ユーザーネームを入力してください')
+        .max(20, '20文字以内で入力してください'),
+    email: yup.string()
+        .required('メールアドレスを入力してください')
+        .email('正しいメール形式で入力してください'),
+    password: yup.string()
+        .required('パスワードを入力してください')
+        .min(6, '6文字以上で入力してください'),
 })
 
 const errorMessage = ref('')
 const successMessage = ref('')
+
+const onSubmit = async (values, { setFieldError, resetForm }) => {
+    try {
+        errorMessage.value = ''
+        successMessage.value = ''
+
+        await register(values.email.trim(), values.password, values.username.trim())
+
+        successMessage.value = '新規登録が完了しました！ホーム画面に移動します...'
+        resetForm()
+
+        setTimeout(() => navigateTo('/'), 1200)
+    } catch (e) {
+        const msg = getErrorMessage(e)
+        if (e?.code === 'auth/email-already-in-use') {
+        setFieldError('email', msg)
+        } else if (e?.code === 'auth/weak-password') {
+        setFieldError('password', msg)
+        } else {
+        setFieldError('email', msg)
+        }
+        errorMessage.value = msg
+    }
+}
 
 onMounted(() => {
     if (isLoggedIn.value) {
         navigateTo('/')
     }
 })
-
-const handleRegister = async () => {
-    try {
-        errorMessage.value = ''
-        successMessage.value = ''
-
-        if (!form.value.username.trim() || !form.value.email.trim() || !form.value.password) {
-            errorMessage.value = 'すべての項目を入力してください'
-            return
-        }
-
-        if (form.value.username.length > 20) {
-            errorMessage.value = 'ユーザーネームは20文字以内で入力してください'
-            return
-        }
-
-        if (form.value.password.length < 6) {
-            errorMessage.value = 'パスワードは6文字以上で入力してください'
-            return
-        }
-
-        await register(
-            form.value.email.trim(),
-            form.value.password,
-            form.value.username.trim()
-        )
-
-        successMessage.value = '新規登録が完了しました！ホーム画面に移動します...'
-
-        setTimeout(() => {
-            navigateTo('/')
-        }, 2000)
-
-    } catch (error) {
-        console.error('新規登録エラー:', error)
-        errorMessage.value = getErrorMessage(error)
-    }
-}
 
 useHead({
     title: '新規登録 - SHARE',
