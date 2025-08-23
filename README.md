@@ -146,7 +146,7 @@ exit
 ```
 
 **Nuxt.js環境構築**
-1. `docker-compose exec nuxt-app bash`
+1. `docker-compose exec nuxt-app sh`
 2. コンテナ内で以下を実行
 ```bash
 npm install
@@ -154,10 +154,30 @@ exit
 ```
 
 **Firebase設定**
-1. [Firebase Console](https://console.firebase.google.com/)にアクセスしてプロジェクトを作成
-2. Authentication > Sign-in method で「メール/パスワード」を有効化
-3. プロジェクト設定（歯車アイコン）からFirebase設定情報を取得
-4. `nuxt-app`ディレクトリ内に`.env`ファイルを作成し、以下の情報を追加
+1. Firebaseプロジェクトの作成
+- [Firebase Console](https://console.firebase.google.com/)にアクセス
+- 「プロジェクトを追加」をクリックしてプロジェクトを作成
+2. Firebase Authentication の有効化
+- Firebase Console で作成したプロジェクトを開く
+- 左メニューの「Authentication」をクリック
+- 「始める」をクリック
+- 「Sign-in method」タブで「メール/パスワード」を有効化
+3. サービスアカウント認証情報の取得
+- Firebase Console の「プロジェクトの設定」（歯車アイコン）をクリック
+- 「サービス アカウント」タブを選択
+- 「新しい秘密鍵の生成」をクリック
+- ブラウザのダウンロードフォルダにファイルがダウンロードされる
+4. 認証情報ファイルの配置
+- ※ storage/app/firebase/ フォルダは事前に作成してください
+- ダウンロードしたJSONファイルを探す
+- そのファイルを storage/app/firebase/credentials.json として保存
+5. 環境変数の設定
+- Firebase Console の「プロジェクトの設定」（歯車アイコン）→「全般」タブからFirebase設定情報を取得
+- Laravel側の`.env` ファイルに以下を追加：
+```text
+FIREBASE_PROJECT_ID=your-firebase-project-id
+```
+- Nuxt.js側の`.env`ファイル(`nuxt-app`ディレクトリ内)を作成し、以下の情報を追加：
 ```text
 NUXT_FIREBASE_API_KEY=your_api_key_here
 NUXT_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
@@ -168,9 +188,16 @@ NUXT_FIREBASE_APP_ID=your_app_id
 ```
 
 **重要な注意事項**
-- Firebase設定は各自で行う必要があります
+- `storage/app/firebase/credentials.json` はセキュリティ上の理由でGit管理対象外です
 - APIキーなどの機密情報はGitHubにプッシュしないでください
 - Firebase未設定の場合、認証機能は動作しません
+
+**トラブルシューティング**
+Firebase関連のエラーが発生する場合：
+1. `storage/app/firebase/credentials.json` が存在することを確認
+2. `.env` の `FIREBASE_PROJECT_ID` が正しく設定されていることを確認
+3. Firebase Console でプロジェクトが正しく設定されていることを確認
+
 
 ## 利用方法
 1. 新規登録からアカウントを作成

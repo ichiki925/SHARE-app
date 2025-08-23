@@ -6,50 +6,43 @@ import {
   onAuthStateChanged,
   updateProfile
 } from 'firebase/auth'
-import { auth } from '~/plugins/firebase.client.js'
+
 
 const user = ref(null)
 const isLoading = ref(false)
 
 export const useFirebaseAuth = () => {
+  const { $auth } = useNuxtApp()  // ← ここがポイント
 
   const isLoggedIn = computed(() => !!user.value)
 
-  const initAuth = () => {
-    return new Promise((resolve) => {
-      onAuthStateChanged(auth, (firebaseUser) => {
-        if (firebaseUser) {
-          user.value = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-            _firebaseUser: firebaseUser
+  const initAuth = () => 
+    new Promise((resolve) => {
+      onAuthStateChanged($auth, (firebaseUser) => {
+        user.value = firebaseUser
+          ? {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+              _firebaseUser: firebaseUser
           }
-        } else {
-          user.value = null
-        }
+          : null
         resolve(firebaseUser)
       })
     })
-  }
 
   const login = async (email, password) => {
     try {
       isLoading.value = true
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      const firebaseUser = userCredential.user
-
+      const cred = await signInWithEmailAndPassword($auth, email, password) // ← $auth
+      const u = cred.user
       user.value = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-        _firebaseUser: firebaseUser
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName || u.email?.split('@')[0],
+        _firebaseUser: u
       }
-
       return user.value
-    } catch (error) {
-      console.error('ログインエラー:', error)
-      throw error
     } finally {
       isLoading.value = false
     }
@@ -58,7 +51,7 @@ export const useFirebaseAuth = () => {
   const register = async (email, password, username) => {
     try {
       isLoading.value = true
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const userCredential = await createUserWithEmailAndPassword($auth, email, password)
       const firebaseUser = userCredential.user
 
       await updateProfile(firebaseUser, {
@@ -82,26 +75,15 @@ export const useFirebaseAuth = () => {
   }
 
   const logout = async () => {
-    try {
-      isLoading.value = true
-      await signOut(auth)
-      user.value = null
-    } catch (error) {
-      console.error('ログアウトエラー:', error)
-      throw error
-    } finally {
-      isLoading.value = false
-    }
+    await signOut($auth) // ← $auth
+    user.value = null
   }
 
   const getAuthToken = async () => {
     if (user.value?._firebaseUser) {
       try {
-        const token = await user.value._firebaseUser.getIdToken()
-        return token
-      } catch (error) {
-        console.error('トークン取得エラー:', error)
-        // トークン取得に失敗した場合はログアウト
+        return await user.value._firebaseUser.getIdToken()
+      } catch {
         await logout()
         return null
       }

@@ -10,7 +10,14 @@ export default defineNuxtConfig({
   // Laravel APIとの連携設定
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE_URL || 'http://localhost/api'
+      apiBase: process.env.API_BASE_URL || 'http://localhost/api',
+
+      NUXT_FIREBASE_API_KEY: process.env.NUXT_FIREBASE_API_KEY,
+      NUXT_FIREBASE_AUTH_DOMAIN: process.env.NUXT_FIREBASE_AUTH_DOMAIN,
+      NUXT_FIREBASE_PROJECT_ID: process.env.NUXT_FIREBASE_PROJECT_ID,
+      NUXT_FIREBASE_STORAGE_BUCKET: process.env.NUXT_FIREBASE_STORAGE_BUCKET,
+      NUXT_FIREBASE_MESSAGING_SENDER_ID: process.env.NUXT_FIREBASE_MESSAGING_SENDER_ID,
+      NUXT_FIREBASE_APP_ID: process.env.NUXT_FIREBASE_APP_ID,
     }
   }
 })

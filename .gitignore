@@ -1,2 +1,2 @@
 docker/mysql/data/*
-!.gitkeepnuxt-app/plugins/firebase.client.js
+!.gitkeep
