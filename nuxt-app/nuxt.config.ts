@@ -7,6 +7,18 @@ export default defineNuxtConfig({
     port: 3000
   },
 
+  // Vite開発サーバーの設定
+  vite: {
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+      hmr: {
+        port: process.env.HMR_PORT || 24678,
+        host: '0.0.0.0'
+      }
+    }
+  },
+
   // Laravel APIとの連携設定
   runtimeConfig: {
     public: {

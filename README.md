@@ -40,7 +40,7 @@ Twitter 風のソーシャルメディアアプリケーションです。ユー
 
 **フロントエンド**
 - Vue.js 3.5.18
-- Nuxt.js 3.18.1
+- Nuxt.js 3.27.0
 - Node.js 20.19.4
 
 **バックエンド**
@@ -114,8 +114,7 @@ Twitter 風のソーシャルメディアアプリケーションです。ユー
 ## 環境構築
 **Dockerビルド**
 1. `git clone git@github.com:ichiki925/SHARE-app.git`
-2. DockerDesktopアプリを立ち上げる
-3. `docker-compose up -d --build`
+2. DockerDesktopアプリを立ち上げて、`docker-compose up -d --build` を実行
 
 **Laravel環境構築**
 1. `docker-compose exec php bash`
