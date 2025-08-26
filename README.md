@@ -185,6 +185,10 @@ NUXT_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 NUXT_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NUXT_FIREBASE_APP_ID=your_app_id
 ```
+6. 設定変更後、全コンテナを再起動
+```bash
+docker-compose restart
+```
 
 **重要な注意事項**
 - `storage/app/firebase/credentials.json` はセキュリティ上の理由でGit管理対象外です
